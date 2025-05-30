@@ -1,10 +1,10 @@
 # FILE_VERSION_START
 # Project: CryptoAndStocksIndicators
 # File: app.py
-# Version: 0.0.8
-# Date: 2024-03-17
+# Version: 0.0.9
+# Date: 2024-03-18
 # Author: [Il Tuo Nome/Nickname]
-# Description: Correzione visibilità testo celle (colore di default).
+# Description: Logica di styling e formattazione rivista per correttezza colori e valori.
 # FILE_VERSION_END
 
 import streamlit as st
@@ -19,12 +19,12 @@ if 'error_logs' not in st.session_state:
 def get_fictional_data():
     """
     Genera dati fittizi per la tabella.
+    Valori numerici per le variazioni percentuali.
     """
-    # Nomi di colonna originali e lunghi qui
     data = [
         {'Nome Asset': 'Microsoft Corp.', 'Ticker': 'MSFT', 'Prezzo Attuale ($)': 420.55, 'Var. 1H (%)': 0.1, 'Var. 12H (%)': 0.5, 'Var. 24H (%)': 0.2, 'Var. 1W (%)': 1.5,
          'AI Signal': '🔥 Strong Buy',
-         'RSI (14)': 'Wait', 'StochRSI %K': 'Buy', 'MACD Signal': 'Buy', 'Stoch %K': 'NeutralValue', 'Awesome Osc.': 'Buy', 'ADX (14)': 'Trend (28)', 'BBands Pos.': 'Mid', # Stoch %K cambiato per test
+         'RSI (14)': 'Wait', 'StochRSI %K': 'Buy', 'MACD Signal': 'Buy', 'Stoch %K': 'Wait', 'Awesome Osc.': 'Buy', 'ADX (14)': 'Trend (28)', 'BBands Pos.': 'Mid',
          'EMA (20) vs Prezzo': 'Buy', 'SMA (50/200)': 'Buy', 'VWAP vs Prezzo': 'Buy'},
         {'Nome Asset': 'Apple Inc.', 'Ticker': 'AAPL', 'Prezzo Attuale ($)': 170.34, 'Var. 1H (%)': -0.2, 'Var. 12H (%)': -0.8, 'Var. 24H (%)': -0.5, 'Var. 1W (%)': -2.0,
          'AI Signal': 'Sell',
@@ -32,7 +32,7 @@ def get_fictional_data():
          'EMA (20) vs Prezzo': 'Sell', 'SMA (50/200)': 'Wait', 'VWAP vs Prezzo': 'Sell'},
         {'Nome Asset': 'NVIDIA Corp.', 'Ticker': 'NVDA', 'Prezzo Attuale ($)': 880.27, 'Var. 1H (%)': 0.5, 'Var. 12H (%)': 1.2, 'Var. 24H (%)': 2.1, 'Var. 1W (%)': 5.3,
          'AI Signal': '🔥 Strong Buy',
-         'RSI (14)': 'Buy', 'StochRSI %K': 'Buy', 'MACD Signal': 'Buy', 'Stoch %K': 'Buy', 'Awesome Osc.': 'Buy', 'ADX (14)': 'Strong (35)', 'BBands Pos.': 'DefaultCase', # BBands cambiato per test
+         'RSI (14)': 'Buy', 'StochRSI %K': 'Buy', 'MACD Signal': 'Buy', 'Stoch %K': 'Buy', 'Awesome Osc.': 'Buy', 'ADX (14)': 'Strong (35)', 'BBands Pos.': 'Upper',
          'EMA (20) vs Prezzo': 'Buy', 'SMA (50/200)': 'Buy', 'VWAP vs Prezzo': 'Buy'},
         {'Nome Asset': 'Alphabet Inc.', 'Ticker': 'GOOGL', 'Prezzo Attuale ($)': 140.10, 'Var. 1H (%)': 0.0, 'Var. 12H (%)': 0.1, 'Var. 24H (%)': 0.7, 'Var. 1W (%)': 0.5,
          'AI Signal': 'Neutral',
@@ -48,7 +48,7 @@ def get_fictional_data():
          'EMA (20) vs Prezzo': 'Buy', 'SMA (50/200)': 'Buy', 'VWAP vs Prezzo': 'Buy'},
         {'Nome Asset': 'Meta Platforms', 'Ticker': 'META', 'Prezzo Attuale ($)': 480.12, 'Var. 1H (%)': -0.1, 'Var. 12H (%)': 0.0, 'Var. 24H (%)': -0.8, 'Var. 1W (%)': 0.2,
          'AI Signal': 'Neutral',
-         'RSI (14)': 'Wait', 'StochRSI %K': 'Sell', 'MACD Signal': 'Wait', 'Stoch %K': 'Sell', 'Awesome Osc.': 'Wait', 'ADX (14)': 'Weak (19)', 'BBands Pos.': 'Mid',
+         'RSI (14)': 'Wait', 'StochRSI %K': 'Sell', 'MACD Signal': 'Wait', 'Stoch %K': 'Sell', 'Awesome Osc.': 'Wait', 'ADX (14)': 'Weak (19)', 'BBands Pos.': 'UnmatchedValue', # Test default color
          'EMA (20) vs Prezzo': 'Wait', 'SMA (50/200)': 'Wait', 'VWAP vs Prezzo': 'Sell'},
         {'Nome Asset': 'Ethereum', 'Ticker': 'ETH', 'Prezzo Attuale ($)': 3750.00, 'Var. 1H (%)': 0.3, 'Var. 12H (%)': 1.0, 'Var. 24H (%)': 0.8, 'Var. 1W (%)': 2.5,
          'AI Signal': 'Buy',
@@ -78,63 +78,56 @@ def get_fictional_data():
     df = pd.DataFrame(data)
     return df
 
-def style_signals_and_variations(val, column_name=""):
-    # Inizializza gli stili come stringhe vuote
-    # In questo modo, se nessuna condizione è soddisfatta, non viene applicato alcuno stile specifico per colore/peso
-    # e Pandas/Streamlit useranno i default, che dovrebbero gestire i temi chiaro/scuro.
-    style_str = ""
-    font_weight_str = ""
+def determine_style(val, column_name=""):
+    """Determina solo il colore e il font-weight basandosi sul valore grezzo."""
+    color = "" # Default a nessun colore specifico
+    font_weight = "" # Default a nessun font-weight specifico
 
     if isinstance(val, str):
-        # Per segnali AI e indicatori testuali
-        color_val = "" # Variabile temporanea per il colore
+        # Segnali AI
         if "AI Signal" in column_name:
-            if 'Strong Buy' in val: color_val = 'darkgreen'; font_weight_str = 'bold'
-            elif 'Buy' in val: color_val = 'green'; font_weight_str = 'bold'
-            elif 'Strong Sell' in val: color_val = 'darkred'; font_weight_str = 'bold'
-            elif 'Sell' in val: color_val = 'red'; font_weight_str = 'bold'
-            elif 'Neutral' in val: color_val = 'gray'
+            if 'Strong Buy' in val: color = 'darkgreen'; font_weight = 'bold'
+            elif 'Buy' in val: color = 'green'; font_weight = 'bold'
+            elif 'Strong Sell' in val: color = 'darkred'; font_weight = 'bold'
+            elif 'Sell' in val: color = 'red'; font_weight = 'bold'
+            elif 'Neutral' in val: color = 'gray'
+        # ADX
         elif "ADX" in column_name:
             try:
                 adx_val_str = val.split('(')[-1].replace(')', '')
                 adx_numeric = float(adx_val_str)
-                if adx_numeric > 20: color_val = 'green' # Trend presente
-                else: color_val = 'gray' # Trend debole/assente
-            except:
-                color_val = 'gray' # Default se l'estrazione fallisce
+                if adx_numeric > 20: color = 'green' # Trend
+                else: color = 'gray' # No/Weak Trend
+            except: color = 'gray' # Fallback
+        # Bollinger Bands Position
         elif "BB Pos." in column_name:
-            if 'Upper' in val: color_val = 'red'
-            elif 'Lower' in val: color_val = 'green'
-            elif 'Mid' in val: color_val = 'gray'
-        else: # Per altri indicatori testuali (RSI, MACD, etc.)
+            if 'Upper' in val: color = 'red'
+            elif 'Lower' in val: color = 'green'
+            elif 'Mid' in val: color = 'gray'
+        # Altri indicatori testuali
+        else:
             val_cap = val.capitalize()
-            if 'Buy' in val_cap: color_val = 'green'; font_weight_str = 'bold'
-            elif 'Sell' in val_cap: color_val = 'red'; font_weight_str = 'bold'
-            elif 'Wait' in val_cap or 'Neutral' in val_cap: color_val = 'gray'
-            # Se val non è "Buy", "Sell", "Wait", "Neutral", color_val rimane vuoto
-            # e il testo userà il colore di default del tema.
+            if 'Buy' in val_cap: color = 'green'; font_weight = 'bold'
+            elif 'Sell' in val_cap: color = 'red'; font_weight = 'bold'
+            elif 'Wait' in val_cap or 'Neutral' in val_cap: color = 'gray'
 
-        if color_val: # Applica il colore solo se è stato impostato
-            style_str += f'color: {color_val};'
+    # Variazioni percentuali (valore numerico)
+    elif isinstance(val, (int, float)) and "%" in column_name:
+        if val > 0: color = 'green'
+        elif val < 0: color = 'red'
+        else: color = 'gray' # Per 0.0%
 
-    elif isinstance(val, (int, float)) and "%" in column_name: # Per variazioni percentuali
-        color_val = ""
-        if val > 0: color_val = 'green'
-        elif val < 0: color_val = 'red'
-        else: color_val = 'gray'
-        if color_val:
-            style_str += f'color: {color_val};'
-
-    if font_weight_str: # Applica il font-weight solo se è stato impostato
-        style_str += f'font-weight: {font_weight_str};'
-
-    return style_str if style_str else None # Ritorna None se non ci sono stili da applicare
+    style_parts = []
+    if color: style_parts.append(f'color: {color}')
+    if font_weight: style_parts.append(f'font-weight: {font_weight}')
+    
+    return '; '.join(style_parts) if style_parts else None
 
 
 # --- Interfaccia Utente Streamlit ---
 st.set_page_config(layout="wide", page_title="Indicatori Trading Dashboard")
 st.title("🔥📊 Dashboard Indicatori Crypto & Stocks")
-st.caption(f"Versione: 0.0.8 | Data: {datetime.now().strftime('%Y-%m-%d')}")
+st.caption(f"Versione: 0.0.9 | Data: {datetime.now().strftime('%Y-%m-%d')}")
 
 df_data_raw = get_fictional_data()
 
@@ -166,31 +159,26 @@ renamed_ma_cols = ['EMA20/P', 'SMA50/200', 'VWAP/P']
 
 all_individual_indicator_cols_renamed = renamed_oscillator_cols + renamed_trend_strength_vol_cols + renamed_ma_cols
 # Colonne che ricevono uno styling specifico (colore e/o peso)
-cols_with_specific_styling = renamed_var_cols + renamed_ai_signal_col + all_individual_indicator_cols_renamed
+cols_to_style = renamed_var_cols + renamed_ai_signal_col + all_individual_indicator_cols_renamed
 
+# Definisci i formattatori
+formatters = {}
+for col in renamed_var_cols: # Formattazione per le variazioni percentuali
+    formatters[col] = lambda x: f"{x:+.1f}%" if isinstance(x, (int, float)) else x
+formatters[renamed_price_col[0]] = "${:,.2f}" # Formattazione per il prezzo
 
-formatters = {col: lambda x: f"{x:+.1f}%" if isinstance(x, (int,float)) else x for col in renamed_var_cols}
-formatters[renamed_price_col[0]] = "${:,.2f}"
+# Applica lo styling e poi la formattazione
+styled_df = df_display.style.apply(lambda df_col: df_col.apply(determine_style, column_name=df_col.name), subset=cols_to_style)\
+                            .format(formatters)
 
-styled_df = df_display.style
-for col_name in df_display.columns:
-    if col_name in cols_with_specific_styling:
-        # Per le variazioni %, applichiamo sia lo stile che la formattazione stringa
-        if col_name in renamed_var_cols:
-            styled_df = styled_df.apply(lambda series: series.apply(style_signals_and_variations, column_name=col_name), subset=[col_name])\
-                                 .format({col_name: lambda x: f"{x:+.1f}%"}) # Applica formattazione % qui
-        else: # Per AI Signal e altri indicatori
-            styled_df = styled_df.apply(lambda series: series.apply(style_signals_and_variations, column_name=col_name), subset=[col_name])
-
-# Applica formattatore prezzo
-styled_df = styled_df.format(formatters) \
-    .set_properties(**{'text-align': 'center'}, subset=cols_with_specific_styling + ['Ticker']) \
-    .set_properties(**{'text-align': 'right'}, subset=renamed_price_col) \
-    .set_properties(**{'text-align': 'left'}, subset=['Nome Asset']) \
-    .set_table_styles([
-        {'selector': 'th', 'props': [('text-align', 'center'), ('background-color', '#f0f2f6'), ('padding', '0.2rem'), ('font-size', '0.8em')]},
-        {'selector': 'td', 'props': [('padding', '0.2rem 0.3rem'), ('font-size', '0.8em')]},
-    ])
+# Applica proprietà generali della tabella
+styled_df = styled_df.set_properties(**{'text-align': 'center'}, subset=cols_to_style + ['Ticker']) \
+                     .set_properties(**{'text-align': 'right'}, subset=renamed_price_col) \
+                     .set_properties(**{'text-align': 'left'}, subset=['Nome Asset']) \
+                     .set_table_styles([
+                         {'selector': 'th', 'props': [('text-align', 'center'), ('background-color', '#f0f2f6'), ('padding', '0.2rem'), ('font-size', '0.8em')]},
+                         {'selector': 'td', 'props': [('padding', '0.2rem 0.3rem'), ('font-size', '0.8em')]},
+                     ])
 
 st.markdown("#### Segnali Tecnici Aggregati e Individuali")
 st.dataframe(styled_df, use_container_width=True, hide_index=True)
@@ -214,7 +202,7 @@ st.markdown("""
 - **Var. 12H (%)**: Variazione percentuale del prezzo nelle ultime 12 ore. Utile per il momentum a brevissimo termine.
 - **Var. 24H (%)**: Variazione percentuale del prezzo nelle ultime 24 ore. Standard per il rendimento giornaliero.
 - **Var. 1W (%)**: Variazione percentuale del prezzo nell'ultima settimana. Indica il trend a breve termine.
-*Verde indica un aumento, Rosso una diminuzione.*
+*Verde indica un aumento (+), Rosso una diminuzione (-), Grigio per variazioni nulle (0.0%).*
 """)
 
 st.markdown("##### Segnale di Sintesi AI")
@@ -228,23 +216,23 @@ st.markdown("##### O S C I L L A T O R S (Indicatori di Momentum e Ipercomprato/
 st.markdown("""
 - **RSI (14)** (Relative Strength Index):
     - *Descrizione*: Misura la velocità e il cambiamento dei movimenti di prezzo su 14 periodi. Scala 0-100.
-    - *Segnali Base*: <30 (ipervenduto, potenziale <span style='color:green; font-weight:bold;'>BUY</span>), >70 (ipercomprato, potenziale <span style='color:red; font-weight:bold;'>SELL</span>).
+    - *Segnali Base*: <30 (ipervenduto, potenziale <span style='color:green; font-weight:bold;'>BUY</span>), >70 (ipercomprato, potenziale <span style='color:red; font-weight:bold;'>SELL</span>), tra 30-70 (<span style='color:gray;'>WAIT</span>).
     - *Utilità*: Identifica condizioni estreme di mercato. Utile per divergenze e conferme di trend.
 - **SRSI %K** (Stochastic RSI %K):
     - *Descrizione*: Applica l'oscillatore stocastico ai valori dell'RSI. Più sensibile dell'RSI.
-    - *Segnali Base (%K)*: <20 (RSI ipervenduto, <span style='color:green; font-weight:bold;'>BUY</span>), >80 (RSI ipercomprato, <span style='color:red; font-weight:bold;'>SELL</span>).
+    - *Segnali Base (%K)*: <20 (RSI ipervenduto, <span style='color:green; font-weight:bold;'>BUY</span>), >80 (RSI ipercomprato, <span style='color:red; font-weight:bold;'>SELL</span>), tra 20-80 (<span style='color:gray;'>WAIT</span>).
     - *Utilità*: Segnali a più breve termine. I crossover %K/%D (non mostrati qui) rafforzano il segnale.
 - **MACD** (Moving Average Convergence Divergence - Segnale Crossover):
     - *Descrizione*: Mostra la relazione tra due medie mobili esponenziali (EMA) del prezzo. Composto da linea MACD, linea Segnale (EMA della linea MACD) e Istogramma (differenza tra le due).
-    - *Segnali Base*: <span style='color:green; font-weight:bold;'>BUY</span> quando linea MACD incrocia sopra la linea Segnale. <span style='color:red; font-weight:bold;'>SELL</span> quando incrocia sotto.
+    - *Segnali Base*: <span style='color:green; font-weight:bold;'>BUY</span> quando linea MACD incrocia sopra la linea Segnale. <span style='color:red; font-weight:bold;'>SELL</span> quando incrocia sotto. Altrimenti (<span style='color:gray;'>WAIT</span>).
     - *Utilità*: Identifica cambiamenti di momentum, direzione del trend e potenziale forza del trend.
 - **Stoch K** (Stochastic Oscillator %K):
     - *Descrizione*: Compara il prezzo di chiusura di un asset al suo range di prezzo su 14 periodi. Scala 0-100.
-    - *Segnali Base (%K)*: <20 (ipervenduto, <span style='color:green; font-weight:bold;'>BUY</span>), >80 (ipercomprato, <span style='color:red; font-weight:bold;'>SELL</span>).
+    - *Segnali Base (%K)*: <20 (ipervenduto, <span style='color:green; font-weight:bold;'>BUY</span>), >80 (ipercomprato, <span style='color:red; font-weight:bold;'>SELL</span>), tra 20-80 (<span style='color:gray;'>WAIT</span>).
     - *Utilità*: Simile all'RSI per ipercomprato/venduto. Crossover %K/%D e divergenze sono importanti.
 - **AO** (Awesome Oscillator):
     - *Descrizione*: Misura il momentum del mercato confrontando il momentum recente (SMA 5 periodi della mediana del prezzo) con un momentum più ampio (SMA 34 periodi).
-    - *Segnali Base (semplificato)*: <span style='color:green; font-weight:bold;'>BUY</span> quando AO attraversa la linea zero verso l'alto. <span style='color:red; font-weight:bold;'>SELL</span> quando attraversa verso il basso.
+    - *Segnali Base (semplificato)*: <span style='color:green; font-weight:bold;'>BUY</span> quando AO attraversa la linea zero verso l'alto. <span style='color:red; font-weight:bold;'>SELL</span> quando attraversa verso il basso. Altrimenti (<span style='color:gray;'>WAIT</span>).
     - *Utilità*: Conferma trend e avvisa di possibili inversioni. Altri pattern (Saucer, Twin Peaks) forniscono ulteriori segnali.
 """, unsafe_allow_html=True)
 
@@ -264,17 +252,18 @@ st.markdown("##### M E D I E   M O B I L I (Indicatori di Trend e Supporto/Resis
 st.markdown("""
 - **EMA20/P** (Prezzo vs EMA a 20 periodi):
     - *Descrizione*: Confronta il prezzo di chiusura attuale con la sua Media Mobile Esponenziale a 20 periodi.
-    - *Segnali Base*: <span style='color:green; font-weight:bold;'>BUY</span> se il prezzo è sopra l'EMA(20). <span style='color:red; font-weight:bold;'>SELL</span> se il prezzo è sotto l'EMA(20).
+    - *Segnali Base*: <span style='color:green; font-weight:bold;'>BUY</span> se il prezzo è sopra l'EMA(20). <span style='color:red; font-weight:bold;'>SELL</span> se il prezzo è sotto l'EMA(20). Altrimenti (<span style='color:gray;'>WAIT</span>).
     - *Utilità*: L'EMA è più reattiva ai recenti cambiamenti di prezzo rispetto alla SMA. Usata per trend a breve-medio e come livello di supporto/resistenza dinamico.
 - **SMA50/200** (SMA Crossover 50/200 periodi):
     - *Descrizione*: Confronta la Media Mobile Semplice a 50 periodi con quella a 200 periodi.
-    - *Segnali Base*: <span style='color:green; font-weight:bold;'>BUY</span> (Golden Cross) quando la SMA50 incrocia sopra la SMA200. <span style='color:red; font-weight:bold;'>SELL</span> (Death Cross) quando la SMA50 incrocia sotto la SMA200.
+    - *Segnali Base*: <span style='color:green; font-weight:bold;'>BUY</span> (Golden Cross) quando la SMA50 incrocia sopra la SMA200. <span style='color:red; font-weight:bold;'>SELL</span> (Death Cross) quando la SMA50 incrocia sotto la SMA200. Altrimenti (<span style='color:gray;'>WAIT</span>).
     - *Utilità*: Segnali di trend a lungo termine molto noti e seguiti. Possono indicare importanti cambiamenti nel sentiment del mercato.
 - **VWAP/P** (Prezzo vs VWAP - Volume Weighted Average Price):
     - *Descrizione*: Confronta il prezzo attuale con il prezzo medio ponderato per i volumi. Per il timeframe giornaliero, si riferisce al VWAP della giornata.
-    - *Segnali Base (concetto giornaliero)*: <span style='color:green; font-weight:bold;'>BUY</span> se il prezzo è sopra il VWAP. <span style='color:red; font-weight:bold;'>SELL</span> se il prezzo è sotto il VWAP.
+    - *Segnali Base (concetto giornaliero)*: <span style='color:green; font-weight:bold;'>BUY</span> se il prezzo è sopra il VWAP. <span style='color:red; font-weight:bold;'>SELL</span> se il prezzo è sotto il VWAP. Altrimenti (<span style='color:gray;'>WAIT</span>).
     - *Utilità*: Considerato un indicatore del "valore equo" durante una sessione. Le istituzioni spesso lo usano come benchmark. Sopra VWAP è generalmente bullish, sotto è bearish per la sessione/giornata.
 """, unsafe_allow_html=True)
+
 
 # --- Sezione Error Logs ---
 st.subheader("⚠️ Error Logs")
@@ -297,10 +286,10 @@ with st.expander("Mostra/Nascondi Error Logs", expanded=False):
         st.rerun()
 
 st.markdown("---")
-st.caption(f"File: app.py | Versione: 0.0.8 | Ultima Modifica: {datetime.now().strftime('%Y-%m-%d')}")
+st.caption(f"File: app.py | Versione: 0.0.9 | Ultima Modifica: {datetime.now().strftime('%Y-%m-%d')}")
 
 # FILE_FOOTER_START
 # End of file: app.py
-# Version: 0.0.8
-# Last Modified: 2024-03-17
+# Version: 0.0.9
+# Last Modified: 2024-03-18
 # FILE_FOOTER_END
