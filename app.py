@@ -1,10 +1,10 @@
 # FILE_VERSION_START
 # Project: CryptoAndStocksIndicators
 # File: app.py
-# Version: 0.0.7
+# Version: 0.0.8
 # Date: 2024-03-17
 # Author: [Il Tuo Nome/Nickname]
-# Description: Colori ADX e AI Signal rivisti, legenda espansa.
+# Description: Correzione visibilità testo celle (colore di default).
 # FILE_VERSION_END
 
 import streamlit as st
@@ -24,7 +24,7 @@ def get_fictional_data():
     data = [
         {'Nome Asset': 'Microsoft Corp.', 'Ticker': 'MSFT', 'Prezzo Attuale ($)': 420.55, 'Var. 1H (%)': 0.1, 'Var. 12H (%)': 0.5, 'Var. 24H (%)': 0.2, 'Var. 1W (%)': 1.5,
          'AI Signal': '🔥 Strong Buy',
-         'RSI (14)': 'Wait', 'StochRSI %K': 'Buy', 'MACD Signal': 'Buy', 'Stoch %K': 'Wait', 'Awesome Osc.': 'Buy', 'ADX (14)': 'Trend (28)', 'BBands Pos.': 'Mid',
+         'RSI (14)': 'Wait', 'StochRSI %K': 'Buy', 'MACD Signal': 'Buy', 'Stoch %K': 'NeutralValue', 'Awesome Osc.': 'Buy', 'ADX (14)': 'Trend (28)', 'BBands Pos.': 'Mid', # Stoch %K cambiato per test
          'EMA (20) vs Prezzo': 'Buy', 'SMA (50/200)': 'Buy', 'VWAP vs Prezzo': 'Buy'},
         {'Nome Asset': 'Apple Inc.', 'Ticker': 'AAPL', 'Prezzo Attuale ($)': 170.34, 'Var. 1H (%)': -0.2, 'Var. 12H (%)': -0.8, 'Var. 24H (%)': -0.5, 'Var. 1W (%)': -2.0,
          'AI Signal': 'Sell',
@@ -32,9 +32,8 @@ def get_fictional_data():
          'EMA (20) vs Prezzo': 'Sell', 'SMA (50/200)': 'Wait', 'VWAP vs Prezzo': 'Sell'},
         {'Nome Asset': 'NVIDIA Corp.', 'Ticker': 'NVDA', 'Prezzo Attuale ($)': 880.27, 'Var. 1H (%)': 0.5, 'Var. 12H (%)': 1.2, 'Var. 24H (%)': 2.1, 'Var. 1W (%)': 5.3,
          'AI Signal': '🔥 Strong Buy',
-         'RSI (14)': 'Buy', 'StochRSI %K': 'Buy', 'MACD Signal': 'Buy', 'Stoch %K': 'Buy', 'Awesome Osc.': 'Buy', 'ADX (14)': 'Strong (35)', 'BBands Pos.': 'Upper',
+         'RSI (14)': 'Buy', 'StochRSI %K': 'Buy', 'MACD Signal': 'Buy', 'Stoch %K': 'Buy', 'Awesome Osc.': 'Buy', 'ADX (14)': 'Strong (35)', 'BBands Pos.': 'DefaultCase', # BBands cambiato per test
          'EMA (20) vs Prezzo': 'Buy', 'SMA (50/200)': 'Buy', 'VWAP vs Prezzo': 'Buy'},
-        # ... (altri dati fittizi come prima, assicurandosi che 'ADX (14)' abbia stringhe tipo "Strong (val)", "Weak (val)")
         {'Nome Asset': 'Alphabet Inc.', 'Ticker': 'GOOGL', 'Prezzo Attuale ($)': 140.10, 'Var. 1H (%)': 0.0, 'Var. 12H (%)': 0.1, 'Var. 24H (%)': 0.7, 'Var. 1W (%)': 0.5,
          'AI Signal': 'Neutral',
          'RSI (14)': 'Wait', 'StochRSI %K': 'Wait', 'MACD Signal': 'Wait', 'Stoch %K': 'Wait', 'Awesome Osc.': 'Wait', 'ADX (14)': 'No Trend (15)', 'BBands Pos.': 'Mid',
@@ -75,54 +74,67 @@ def get_fictional_data():
          'AI Signal': 'Sell',
          'RSI (14)': 'Buy', 'StochRSI %K': 'Buy', 'MACD Signal': 'Sell', 'Stoch %K': 'Buy', 'Awesome Osc.': 'Sell', 'ADX (14)': 'Weak (17)', 'BBands Pos.': 'Lower',
          'EMA (20) vs Prezzo': 'Sell', 'SMA (50/200)': 'Sell', 'VWAP vs Prezzo': 'Sell'},
-
     ]
     df = pd.DataFrame(data)
     return df
 
 def style_signals_and_variations(val, column_name=""):
-    color = 'inherit'
-    font_weight = 'normal'
-    # text_to_display = val # Non più necessario qui, la formattazione % avviene dopo
+    # Inizializza gli stili come stringhe vuote
+    # In questo modo, se nessuna condizione è soddisfatta, non viene applicato alcuno stile specifico per colore/peso
+    # e Pandas/Streamlit useranno i default, che dovrebbero gestire i temi chiaro/scuro.
+    style_str = ""
+    font_weight_str = ""
 
     if isinstance(val, str):
         # Per segnali AI e indicatori testuali
+        color_val = "" # Variabile temporanea per il colore
         if "AI Signal" in column_name:
-            if 'Strong Buy' in val: color = 'darkgreen'; font_weight = 'bold'
-            elif 'Buy' in val: color = 'green'; font_weight = 'bold'
-            elif 'Strong Sell' in val: color = 'darkred'; font_weight = 'bold'
-            elif 'Sell' in val: color = 'red'; font_weight = 'bold'
-            elif 'Neutral' in val: color = 'gray'
-        elif "ADX" in column_name: # Gestione specifica per ADX
-             # Estrai il valore numerico se presente, es. da "Trend (28)"
+            if 'Strong Buy' in val: color_val = 'darkgreen'; font_weight_str = 'bold'
+            elif 'Buy' in val: color_val = 'green'; font_weight_str = 'bold'
+            elif 'Strong Sell' in val: color_val = 'darkred'; font_weight_str = 'bold'
+            elif 'Sell' in val: color_val = 'red'; font_weight_str = 'bold'
+            elif 'Neutral' in val: color_val = 'gray'
+        elif "ADX" in column_name:
             try:
                 adx_val_str = val.split('(')[-1].replace(')', '')
                 adx_numeric = float(adx_val_str)
-                if adx_numeric > 20: color = 'green' # Trend presente (semplificato)
-                else: color = 'gray' # Trend debole/assente (semplificato)
-            except: # Se non riesce a estrarre il numero, o non è nel formato atteso
-                color = 'gray' # Default
-        elif "BB Pos." in column_name: # Bollinger Bands Position
-            if 'Upper' in val: color = 'red'
-            elif 'Lower' in val: color = 'green'
-            elif 'Mid' in val: color = 'gray'
+                if adx_numeric > 20: color_val = 'green' # Trend presente
+                else: color_val = 'gray' # Trend debole/assente
+            except:
+                color_val = 'gray' # Default se l'estrazione fallisce
+        elif "BB Pos." in column_name:
+            if 'Upper' in val: color_val = 'red'
+            elif 'Lower' in val: color_val = 'green'
+            elif 'Mid' in val: color_val = 'gray'
         else: # Per altri indicatori testuali (RSI, MACD, etc.)
-            if 'Buy' in val.capitalize(): color = 'green'; font_weight = 'bold'
-            elif 'Sell' in val.capitalize(): color = 'red'; font_weight = 'bold'
-            elif 'Wait' in val.capitalize() or 'Neutral' in val.capitalize(): color = 'gray'
+            val_cap = val.capitalize()
+            if 'Buy' in val_cap: color_val = 'green'; font_weight_str = 'bold'
+            elif 'Sell' in val_cap: color_val = 'red'; font_weight_str = 'bold'
+            elif 'Wait' in val_cap or 'Neutral' in val_cap: color_val = 'gray'
+            # Se val non è "Buy", "Sell", "Wait", "Neutral", color_val rimane vuoto
+            # e il testo userà il colore di default del tema.
+
+        if color_val: # Applica il colore solo se è stato impostato
+            style_str += f'color: {color_val};'
 
     elif isinstance(val, (int, float)) and "%" in column_name: # Per variazioni percentuali
-        if val > 0: color = 'green'
-        elif val < 0: color = 'red'
-        else: color = 'gray'
-        # La formattazione con segno e % verrà applicata da .format() dopo
-    return f'color: {color}; font-weight: {font_weight};'
+        color_val = ""
+        if val > 0: color_val = 'green'
+        elif val < 0: color_val = 'red'
+        else: color_val = 'gray'
+        if color_val:
+            style_str += f'color: {color_val};'
+
+    if font_weight_str: # Applica il font-weight solo se è stato impostato
+        style_str += f'font-weight: {font_weight_str};'
+
+    return style_str if style_str else None # Ritorna None se non ci sono stili da applicare
 
 
 # --- Interfaccia Utente Streamlit ---
 st.set_page_config(layout="wide", page_title="Indicatori Trading Dashboard")
 st.title("🔥📊 Dashboard Indicatori Crypto & Stocks")
-st.caption(f"Versione: 0.0.7 | Data: {datetime.now().strftime('%Y-%m-%d')}")
+st.caption(f"Versione: 0.0.8 | Data: {datetime.now().strftime('%Y-%m-%d')}")
 
 df_data_raw = get_fictional_data()
 
@@ -153,29 +165,31 @@ renamed_trend_strength_vol_cols = ['ADX', 'BB Pos.']
 renamed_ma_cols = ['EMA20/P', 'SMA50/200', 'VWAP/P']
 
 all_individual_indicator_cols_renamed = renamed_oscillator_cols + renamed_trend_strength_vol_cols + renamed_ma_cols
-all_styled_cols_renamed = renamed_var_cols + renamed_ai_signal_col + all_individual_indicator_cols_renamed
+# Colonne che ricevono uno styling specifico (colore e/o peso)
+cols_with_specific_styling = renamed_var_cols + renamed_ai_signal_col + all_individual_indicator_cols_renamed
+
 
 formatters = {col: lambda x: f"{x:+.1f}%" if isinstance(x, (int,float)) else x for col in renamed_var_cols}
 formatters[renamed_price_col[0]] = "${:,.2f}"
 
 styled_df = df_display.style
 for col_name in df_display.columns:
-    if col_name in all_styled_cols_renamed or col_name in renamed_price_col: # Include price per formattazione
+    if col_name in cols_with_specific_styling:
+        # Per le variazioni %, applichiamo sia lo stile che la formattazione stringa
         if col_name in renamed_var_cols:
-             # Applica lo styling colore e la formattazione per le variazioni %
             styled_df = styled_df.apply(lambda series: series.apply(style_signals_and_variations, column_name=col_name), subset=[col_name])\
-                                 .format({col_name: lambda x: f"{x:+.1f}%"})
-        elif col_name in all_styled_cols_renamed : # Per AI Signal e altri indicatori
+                                 .format({col_name: lambda x: f"{x:+.1f}%"}) # Applica formattazione % qui
+        else: # Per AI Signal e altri indicatori
             styled_df = styled_df.apply(lambda series: series.apply(style_signals_and_variations, column_name=col_name), subset=[col_name])
 
-# Applica formattatore prezzo dopo gli altri stili per non sovrascrivere
+# Applica formattatore prezzo
 styled_df = styled_df.format(formatters) \
-    .set_properties(**{'text-align': 'center'}, subset=all_styled_cols_renamed + ['Ticker']) \
+    .set_properties(**{'text-align': 'center'}, subset=cols_with_specific_styling + ['Ticker']) \
     .set_properties(**{'text-align': 'right'}, subset=renamed_price_col) \
     .set_properties(**{'text-align': 'left'}, subset=['Nome Asset']) \
     .set_table_styles([
-        {'selector': 'th', 'props': [('text-align', 'center'), ('background-color', '#f0f2f6'), ('padding', '0.2rem'), ('font-size', '0.8em')]}, # Font header ulteriormente ridotto
-        {'selector': 'td', 'props': [('padding', '0.2rem 0.3rem'), ('font-size', '0.8em')]}, # Font celle ulteriormente ridotto
+        {'selector': 'th', 'props': [('text-align', 'center'), ('background-color', '#f0f2f6'), ('padding', '0.2rem'), ('font-size', '0.8em')]},
+        {'selector': 'td', 'props': [('padding', '0.2rem 0.3rem'), ('font-size', '0.8em')]},
     ])
 
 st.markdown("#### Segnali Tecnici Aggregati e Individuali")
@@ -183,6 +197,7 @@ st.dataframe(styled_df, use_container_width=True, hide_index=True)
 
 
 # --- Legenda Indicatori ---
+# (Legenda dalla v0.0.7, assicurati che i nomi corrispondano)
 st.subheader("📜 Legenda Dettagliata Indicatori e Colonne")
 st.markdown("---")
 
@@ -237,7 +252,7 @@ st.markdown("##### Indicatori di TREND & VOLATILITÀ")
 st.markdown("""
 - **ADX** (Average Directional Index):
     - *Descrizione*: Misura la forza di un trend su 14 periodi, non la sua direzione. Scala da 0 a 100.
-    - *Interpretazione*: >20-25 indica un trend presente (<span style='color:green;'>Verde</span> in tabella). Sotto 20, il trend è debole o il mercato è laterale (<span style='color:gray;'>Grigio</span>). Valori alti (es. >40) indicano trend molto forti.
+    - *Interpretazione*: >20 indica un trend presente o in sviluppo (<span style='color:green;'>Verde</span> in tabella). Sotto 20, il trend è debole o il mercato è laterale (<span style='color:gray;'>Grigio</span>). Valori alti (es. >40) indicano trend molto forti.
     - *Utilità*: Aiuta a decidere se usare indicatori di trend (ADX alto) o oscillatori (ADX basso). Non genera segnali Buy/Sell diretti.
 - **BB Pos.** (Bollinger Bands Position):
     - *Descrizione*: Le Bande di Bollinger consistono in una media mobile semplice (SMA 20 periodi) più due deviazioni standard sopra (banda superiore) e sotto (banda inferiore).
@@ -261,7 +276,6 @@ st.markdown("""
     - *Utilità*: Considerato un indicatore del "valore equo" durante una sessione. Le istituzioni spesso lo usano come benchmark. Sopra VWAP è generalmente bullish, sotto è bearish per la sessione/giornata.
 """, unsafe_allow_html=True)
 
-
 # --- Sezione Error Logs ---
 st.subheader("⚠️ Error Logs")
 st.markdown("---")
@@ -283,10 +297,10 @@ with st.expander("Mostra/Nascondi Error Logs", expanded=False):
         st.rerun()
 
 st.markdown("---")
-st.caption(f"File: app.py | Versione: 0.0.7 | Ultima Modifica: {datetime.now().strftime('%Y-%m-%d')}")
+st.caption(f"File: app.py | Versione: 0.0.8 | Ultima Modifica: {datetime.now().strftime('%Y-%m-%d')}")
 
 # FILE_FOOTER_START
 # End of file: app.py
-# Version: 0.0.7
+# Version: 0.0.8
 # Last Modified: 2024-03-17
 # FILE_FOOTER_END
