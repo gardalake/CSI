@@ -1,10 +1,10 @@
 # FILE_VERSION_START
 # Project: CryptoAndStocksIndicators
 # File: app.py
-# Version: 0.0.2
+# Version: 0.0.3
 # Date: 2024-03-16
 # Author: [Il Tuo Nome/Nickname]
-# Description: Applicazione Streamlit con tabella espansa di indicatori (Dati Fittizi).
+# Description: Correzione AttributeError per .hide_index() con Pandas Styler.
 # FILE_VERSION_END
 
 import streamlit as st
@@ -55,7 +55,7 @@ def get_fictional_data():
          'RSI (14)': 'Wait', 'StochRSI %K': 'Wait', 'MACD Signal': 'Wait', 'Stoch %K': 'Wait', 'Awesome Osc.': 'Wait',
          'EMA (20) vs Prezzo': 'Wait', 'SMA (50/200)': 'Wait', 'VWAP vs Prezzo': 'Wait'},
         {'Rank': 12, 'Nome Asset': 'ProSh Volatil ST Fut', 'Ticker': 'UVXY', 'Market Cap ($)': '550 M', 'Prezzo Attuale ($)': 8.50, 'Var. 24H (%)': 5.1,
-         'RSI (14)': 'Sell', 'StochRSI %K': 'Sell', 'MACD Signal': 'Buy', 'Stoch %K': 'Sell', 'Awesome Osc.': 'Buy', # UVXY può avere segnali misti
+         'RSI (14)': 'Sell', 'StochRSI %K': 'Sell', 'MACD Signal': 'Buy', 'Stoch %K': 'Sell', 'Awesome Osc.': 'Buy',
          'EMA (20) vs Prezzo': 'Buy', 'SMA (50/200)': 'Wait', 'VWAP vs Prezzo': 'Buy'},
         {'Rank': 13, 'Nome Asset': 'Rigetti Computing', 'Ticker': 'RGTI', 'Market Cap ($)': '220 M', 'Prezzo Attuale ($)': 1.52, 'Var. 24H (%)': -1.2,
          'RSI (14)': 'Buy', 'StochRSI %K': 'Buy', 'MACD Signal': 'Sell', 'Stoch %K': 'Buy', 'Awesome Osc.': 'Sell',
@@ -63,6 +63,9 @@ def get_fictional_data():
     ]
     df = pd.DataFrame(data)
     df = df.sort_values(by='Rank')
+    # Se 'Rank' non dovesse essere usato come indice Pandas, l'indice di default (0,1,2...)
+    # verrà nascosto da st.dataframe quando gli si passa un oggetto Styler,
+    # oppure possiamo passare hide_index=True a st.dataframe.
     return df
 
 def style_signals(val):
@@ -83,28 +86,23 @@ def style_signals(val):
 # --- Interfaccia Utente Streamlit ---
 st.set_page_config(layout="wide", page_title="Indicatori Trading Dashboard")
 st.title("📊 Dashboard Indicatori Crypto & Stocks")
-st.caption(f"Versione: 0.0.2 | Data: {datetime.now().strftime('%Y-%m-%d')}")
+st.caption(f"Versione: 0.0.3 | Data: {datetime.now().strftime('%Y-%m-%d')}")
 
 # Carica i dati (fittizi per ora)
 df_data = get_fictional_data()
 
 # Definisci le colonne
-# Colonne informative di base
 info_cols = ['Rank', 'Nome Asset', 'Ticker', 'Market Cap ($)']
 price_cols = ['Prezzo Attuale ($)']
 percentage_cols = ['Var. 24H (%)']
-
-# Colonne degli indicatori raggruppate per categoria
 oscillator_cols = ['RSI (14)', 'StochRSI %K', 'MACD Signal', 'Stoch %K', 'Awesome Osc.']
 ma_cols = ['EMA (20) vs Prezzo', 'SMA (50/200)', 'VWAP vs Prezzo']
 all_indicator_cols = oscillator_cols + ma_cols
 
-# Riorganizza le colonne per la visualizzazione
 display_columns = info_cols + price_cols + percentage_cols + oscillator_cols + ma_cols
 df_display = df_data[display_columns]
 
 
-# Creazione dizionario per la formattazione
 formatters = {}
 for col in price_cols:
     if col in df_display.columns:
@@ -113,7 +111,6 @@ for col in percentage_cols:
     if col in df_display.columns:
         formatters[col] = "{:+.1f}%"
 
-# Applica lo styling
 styled_df = df_display.style.apply(lambda x: x.map(style_signals), subset=all_indicator_cols) \
                            .format(formatters) \
                            .set_properties(**{'text-align': 'center'}, subset=all_indicator_cols + percentage_cols + ['Rank']) \
@@ -121,26 +118,19 @@ styled_df = df_display.style.apply(lambda x: x.map(style_signals), subset=all_in
                            .set_properties(**{'text-align': 'left'}, subset=['Nome Asset', 'Ticker', 'Market Cap ($)']) \
                            .set_table_styles([
                                {'selector': 'th', 'props': [('text-align', 'center'), ('background-color', '#f0f2f6')]},
-                               {'selector': 'td', 'props': [('padding', '0.3rem 0.5rem')]}, # Padding per le celle
-                               {'selector': 'th.col_heading', 'props': [('font-size', '0.9em')]} # Font più piccolo per header
-                           ]) \
-                           .hide_index()
+                               {'selector': 'td', 'props': [('padding', '0.3rem 0.5rem')]},
+                               {'selector': 'th.col_heading', 'props': [('font-size', '0.9em')]}
+                           ])
+                           # .hide_index() # RIMOSSO DA QUI
 
 
-# Visualizza la tabella con header multilivello se possibile (Streamlit non lo supporta nativamente con st.dataframe)
-# Per ora, usiamo nomi di colonna che suggeriscono la categoria.
-# Potremmo creare header HTML custom se necessario, ma aumenta la complessità.
-
-# Introduzione alle categorie prima della tabella
 st.markdown("### Indicatori Tecnici")
-st.dataframe(styled_df, use_container_width=True)
+# Passiamo hide_index=True direttamente a st.dataframe
+st.dataframe(styled_df, use_container_width=True, hide_index=True)
 
 
-# --- Legenda Indicatori ---
 st.subheader("📜 Legenda Indicatori")
 st.markdown("---")
-
-# OSCILLATORS
 st.markdown("#### O S C I L L A T O R S")
 st.markdown("""
 **Relative Strength Index (RSI 14)**
@@ -165,7 +155,6 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 st.markdown("---")
-# MOVING AVERAGES
 st.markdown("#### M O V I N G   A V E R A G E S")
 st.markdown("""
 **EMA (20) vs Prezzo**
@@ -182,10 +171,8 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 
-# --- Sezione Error Logs ---
 st.subheader("⚠️ Error Logs")
 st.markdown("---")
-
 with st.expander("Mostra/Nascondi Error Logs", expanded=False):
     if 'error_logs' in st.session_state and st.session_state.error_logs:
         for i, log_entry in enumerate(reversed(st.session_state.error_logs)):
@@ -206,12 +193,11 @@ with st.expander("Mostra/Nascondi Error Logs", expanded=False):
         st.session_state.error_logs = []
         st.rerun()
 
-# --- Footer del File ---
 st.markdown("---")
-st.caption(f"File: app.py | Versione: 0.0.2 | Ultima Modifica: {datetime.now().strftime('%Y-%m-%d')}")
+st.caption(f"File: app.py | Versione: 0.0.3 | Ultima Modifica: {datetime.now().strftime('%Y-%m-%d')}")
 
 # FILE_FOOTER_START
 # End of file: app.py
-# Version: 0.0.2
+# Version: 0.0.3
 # Last Modified: 2024-03-16
 # FILE_FOOTER_END
