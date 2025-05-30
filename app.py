@@ -1,10 +1,10 @@
 # FILE_VERSION_START
 # Project: CryptoAndStocksIndicators
 # File: app.py
-# Version: 0.1.2
+# Version: 0.1.3
 # Date: 2024-03-19
 # Author: [Il Tuo Nome/Nickname]
-# Description: Ripristino st.dataframe per stabilità layout, link TV testuale. Correzione colori.
+# Description: Focus su correzione colori testo celle e ripristino lista asset completa.
 # FILE_VERSION_END
 
 import streamlit as st
@@ -17,76 +17,125 @@ if 'error_logs' not in st.session_state:
 
 # --- Funzioni Helper ---
 def get_fictional_data():
+    """
+    Genera dati fittizi per la tabella con la lista asset completa.
+    """
     data = [
-        # Crypto
+        # Crypto (ordinati per Crypto Rank fittizio)
         {'Asset Type': 'Crypto', 'Crypto Rank': 1, 'Market Cap': 1.35e12, 'Nome Asset': 'Bitcoin', 'Ticker': 'BTC', 'TradingViewSymbol': 'BTCUSD', 'Prezzo Attuale ($)': 68500.50, 'Var. 1H (%)': 0.8, 'Var. 12H (%)': 2.0, 'Var. 24H (%)': 1.5, 'Var. 1W (%)': 3.0,
          'AI Signal': 'Buy', 'OBV Signal': 'Buy', 'ATR Signal': 'Buy',
          'RSI (14)': 'Buy', 'StochRSI %K': 'Wait', 'MACD Signal': 'Buy', 'Stoch %K': 'Wait', 'Awesome Osc.': 'Buy', 'ADX (14)': 'Strong (40)', 'BBands Pos.': 'Mid',
          'EMA (20) vs Prezzo': 'Buy', 'SMA (50/200)': 'Buy', 'VWAP vs Prezzo': 'Buy'},
-        {'Asset Type': 'Crypto', 'Crypto Rank': 2, 'Market Cap': 4.50e11, 'Nome Asset': 'Ethereum', 'Ticker': 'ETH', 'TradingViewSymbol': 'ETHUSD', 'Prezzo Attuale ($)': 3750.00, 'Var. 1H (%)': 0.3, 'Var. 12H (%)': 1.0, 'Var. 24H (%)': 0.8, 'Var. 1W (%)': 2.5,
+        {'Asset Type': 'Crypto', 'Crypto Rank': 2, 'Market Cap': 4.50e11, 'Nome Asset': 'Ethereum', 'Ticker': 'ETH', 'TradingViewSymbol': 'ETHUSD', 'Prezzo Attuale ($)': 3750.00, 'Var. 1H (%)': -0.3, 'Var. 12H (%)': 1.0, 'Var. 24H (%)': 0.8, 'Var. 1W (%)': 2.5, # Var 1H negativa
          'AI Signal': 'Buy', 'OBV Signal': 'Wait', 'ATR Signal': 'Wait',
          'RSI (14)': 'Wait', 'StochRSI %K': 'Buy', 'MACD Signal': 'Buy', 'Stoch %K': 'Buy', 'Awesome Osc.': 'Buy', 'ADX (14)': 'Trend (30)', 'BBands Pos.': 'Upper',
          'EMA (20) vs Prezzo': 'Buy', 'SMA (50/200)': 'Buy', 'VWAP vs Prezzo': 'Buy'},
-        # Stocks
-        {'Asset Type': 'Stock', 'Crypto Rank': 99999, 'Market Cap': 3.12e12, 'Nome Asset': 'Microsoft Corp.', 'Ticker': 'MSFT', 'TradingViewSymbol': 'NASDAQ:MSFT', 'Prezzo Attuale ($)': 420.55, 'Var. 1H (%)': 0.1, 'Var. 12H (%)': 0.5, 'Var. 24H (%)': 0.2, 'Var. 1W (%)': 1.5,
+
+        # Stocks & ETFs (ordinati per Market Cap fittizio decrescente)
+        # 7 Tech Principali
+        {'Asset Type': 'Stock', 'Crypto Rank': None, 'Market Cap': 3.12e12, 'Nome Asset': 'Microsoft Corp.', 'Ticker': 'MSFT', 'TradingViewSymbol': 'NASDAQ:MSFT', 'Prezzo Attuale ($)': 420.55, 'Var. 1H (%)': 0.1, 'Var. 12H (%)': 0.5, 'Var. 24H (%)': 0.2, 'Var. 1W (%)': 1.5,
          'AI Signal': '🔥 Strong Buy', 'OBV Signal': 'Buy', 'ATR Signal': 'Buy',
          'RSI (14)': 'Wait', 'StochRSI %K': 'Buy', 'MACD Signal': 'Buy', 'Stoch %K': 'Wait', 'Awesome Osc.': 'Buy', 'ADX (14)': 'Trend (28)', 'BBands Pos.': 'Mid',
          'EMA (20) vs Prezzo': 'Buy', 'SMA (50/200)': 'Buy', 'VWAP vs Prezzo': 'Buy'},
-        {'Asset Type': 'Stock', 'Crypto Rank': 99999, 'Market Cap': 2.63e12, 'Nome Asset': 'Apple Inc.', 'Ticker': 'AAPL', 'TradingViewSymbol': 'NASDAQ:AAPL', 'Prezzo Attuale ($)': 170.34, 'Var. 1H (%)': -0.2, 'Var. 12H (%)': -0.8, 'Var. 24H (%)': -0.5, 'Var. 1W (%)': -2.0,
+        {'Asset Type': 'Stock', 'Crypto Rank': None, 'Market Cap': 2.63e12, 'Nome Asset': 'Apple Inc.', 'Ticker': 'AAPL', 'TradingViewSymbol': 'NASDAQ:AAPL', 'Prezzo Attuale ($)': 170.34, 'Var. 1H (%)': -0.2, 'Var. 12H (%)': -0.8, 'Var. 24H (%)': -0.5, 'Var. 1W (%)': -2.0,
          'AI Signal': 'Sell', 'OBV Signal': 'Sell', 'ATR Signal': 'Sell',
          'RSI (14)': 'Sell', 'StochRSI %K': 'Sell', 'MACD Signal': 'Sell', 'Stoch %K': 'Sell', 'Awesome Osc.': 'Sell', 'ADX (14)': 'Weak (18)', 'BBands Pos.': 'Upper',
          'EMA (20) vs Prezzo': 'Sell', 'SMA (50/200)': 'Wait', 'VWAP vs Prezzo': 'Sell'},
-        # ... (altri dati come prima)
-        {'Asset Type': 'Stock', 'Crypto Rank': 99999, 'Market Cap': 2.20e8, 'Nome Asset': 'Rigetti Comp.', 'Ticker': 'RGTI', 'TradingViewSymbol': 'NASDAQ:RGTI', 'Prezzo Attuale ($)': 1.52, 'Var. 1H (%)': -0.5, 'Var. 12H (%)': -1.0, 'Var. 24H (%)': -1.2, 'Var. 1W (%)': -3.5,
+        {'Asset Type': 'Stock', 'Crypto Rank': None, 'Market Cap': 2.20e12, 'Nome Asset': 'NVIDIA Corp.', 'Ticker': 'NVDA', 'TradingViewSymbol': 'NASDAQ:NVDA', 'Prezzo Attuale ($)': 880.27, 'Var. 1H (%)': 0.5, 'Var. 12H (%)': 1.2, 'Var. 24H (%)': 2.1, 'Var. 1W (%)': 5.3,
+         'AI Signal': '🔥 Strong Buy', 'OBV Signal': 'Buy', 'ATR Signal': 'Buy',
+         'RSI (14)': 'Buy', 'StochRSI %K': 'Buy', 'MACD Signal': 'Buy', 'Stoch %K': 'Buy', 'Awesome Osc.': 'Buy', 'ADX (14)': 'Strong (35)', 'BBands Pos.': 'Upper',
+         'EMA (20) vs Prezzo': 'Buy', 'SMA (50/200)': 'Buy', 'VWAP vs Prezzo': 'Buy'},
+        {'Asset Type': 'Stock', 'Crypto Rank': None, 'Market Cap': 1.82e12, 'Nome Asset': 'Amazon.com Inc.', 'Ticker': 'AMZN', 'TradingViewSymbol': 'NASDAQ:AMZN', 'Prezzo Attuale ($)': 175.80, 'Var. 1H (%)': 0.0, 'Var. 12H (%)': -0.5, 'Var. 24H (%)': -1.0, 'Var. 1W (%)': -1.2, # Var 1H zero
+         'AI Signal': 'Strong Sell', 'OBV Signal': 'Sell', 'ATR Signal': 'Sell',
+         'RSI (14)': 'Sell', 'StochRSI %K': 'Sell', 'MACD Signal': 'Sell', 'Stoch %K': 'Sell', 'Awesome Osc.': 'Sell', 'ADX (14)': 'Trend (26)', 'BBands Pos.': 'Lower',
+         'EMA (20) vs Prezzo': 'Sell', 'SMA (50/200)': 'Wait', 'VWAP vs Prezzo': 'Sell'},
+        {'Asset Type': 'Stock', 'Crypto Rank': None, 'Market Cap': 1.75e12, 'Nome Asset': 'Alphabet Inc. (GOOGL)', 'Ticker': 'GOOGL', 'TradingViewSymbol': 'NASDAQ:GOOGL', 'Prezzo Attuale ($)': 140.10, 'Var. 1H (%)': 0.0, 'Var. 12H (%)': 0.1, 'Var. 24H (%)': 0.7, 'Var. 1W (%)': 0.5,
+         'AI Signal': 'Neutral', 'OBV Signal': 'Wait', 'ATR Signal': 'Wait',
+         'RSI (14)': 'Wait', 'StochRSI %K': 'Wait', 'MACD Signal': 'Wait', 'Stoch %K': 'Wait', 'Awesome Osc.': 'Wait', 'ADX (14)': 'No Trend (15)', 'BBands Pos.': 'Mid',
+         'EMA (20) vs Prezzo': 'Wait', 'SMA (50/200)': 'Buy', 'VWAP vs Prezzo': 'Wait'},
+        {'Asset Type': 'Stock', 'Crypto Rank': None, 'Market Cap': 1.22e12, 'Nome Asset': 'Meta Platforms Inc.', 'Ticker': 'META', 'TradingViewSymbol': 'NASDAQ:META', 'Prezzo Attuale ($)': 480.12, 'Var. 1H (%)': -0.1, 'Var. 12H (%)': 0.0, 'Var. 24H (%)': -0.8, 'Var. 1W (%)': 0.2,
+         'AI Signal': 'Neutral', 'OBV Signal': 'Wait', 'ATR Signal': 'Wait',
+         'RSI (14)': 'Wait', 'StochRSI %K': 'Sell', 'MACD Signal': 'Wait', 'Stoch %K': 'Sell', 'Awesome Osc.': 'Wait', 'ADX (14)': 'Weak (19)', 'BBands Pos.': 'Mid',
+         'EMA (20) vs Prezzo': 'Wait', 'SMA (50/200)': 'Wait', 'VWAP vs Prezzo': 'Sell'},
+        {'Asset Type': 'Stock', 'Crypto Rank': None, 'Market Cap': 5.60e11, 'Nome Asset': 'Tesla, Inc.', 'Ticker': 'TSLA', 'TradingViewSymbol': 'NASDAQ:TSLA', 'Prezzo Attuale ($)': 177.45, 'Var. 1H (%)': -0.7, 'Var. 12H (%)': -1.5, 'Var. 24H (%)': -3.0, 'Var. 1W (%)': -6.5,
+         'AI Signal': 'Strong Sell', 'OBV Signal': 'Sell', 'ATR Signal': 'Sell',
+         'RSI (14)': 'Sell', 'StochRSI %K': 'Sell', 'MACD Signal': 'Sell', 'Stoch %K': 'Sell', 'Awesome Osc.': 'Sell', 'ADX (14)': 'Strong (42)', 'BBands Pos.': 'Lower',
+         'EMA (20) vs Prezzo': 'Sell', 'SMA (50/200)': 'Sell', 'VWAP vs Prezzo': 'Sell'},
+
+        # Altri Stocks/ETFs
+        {'Asset Type': 'Stock', 'Crypto Rank': None, 'Market Cap': 2.20e8, 'Nome Asset': 'Rigetti Computing (GTI)', 'Ticker': 'RGTI', 'TradingViewSymbol': 'NASDAQ:RGTI', 'Prezzo Attuale ($)': 1.52, 'Var. 1H (%)': -0.5, 'Var. 12H (%)': -1.0, 'Var. 24H (%)': -1.2, 'Var. 1W (%)': -3.5,
          'AI Signal': 'Sell', 'OBV Signal': 'Sell', 'ATR Signal': 'Wait',
          'RSI (14)': 'Buy', 'StochRSI %K': 'Buy', 'MACD Signal': 'Sell', 'Stoch %K': 'Buy', 'Awesome Osc.': 'Sell', 'ADX (14)': 'Weak (17)', 'BBands Pos.': 'Lower',
          'EMA (20) vs Prezzo': 'Sell', 'SMA (50/200)': 'Sell', 'VWAP vs Prezzo': 'Sell'},
+        {'Asset Type': 'Stock', 'Crypto Rank': None, 'Market Cap': 2.10e9, 'Nome Asset': 'IonQ Inc. (Quantum)', 'Ticker': 'IONQ', 'TradingViewSymbol': 'NYSE:IONQ', 'Prezzo Attuale ($)': 10.30, 'Var. 1H (%)': 0.0, 'Var. 12H (%)': -0.2, 'Var. 24H (%)': 0.1, 'Var. 1W (%)': -1.0,
+         'AI Signal': 'Neutral', 'OBV Signal': 'Wait', 'ATR Signal': 'Wait',
+         'RSI (14)': 'Wait', 'StochRSI %K': 'Wait', 'MACD Signal': 'Wait', 'Stoch %K': 'Wait', 'Awesome Osc.': 'Wait', 'ADX (14)': 'No Trend (12)', 'BBands Pos.': 'Mid',
+         'EMA (20) vs Prezzo': 'Wait', 'SMA (50/200)': 'Wait', 'VWAP vs Prezzo': 'Wait'},
+        {'Asset Type': 'ETF', 'Crypto Rank': None, 'Market Cap': 5.50e8, 'Nome Asset': 'ProSh Volatil ST Fut (UVXY)', 'Ticker': 'UVXY', 'TradingViewSymbol': 'AMEX:UVXY', 'Prezzo Attuale ($)': 8.50, 'Var. 1H (%)': 1.0, 'Var. 12H (%)': 2.5, 'Var. 24H (%)': 5.1, 'Var. 1W (%)': 10.0,
+         'AI Signal': 'Buy', 'OBV Signal': 'Buy', 'ATR Signal': 'Buy',
+         'RSI (14)': 'Sell', 'StochRSI %K': 'Sell', 'MACD Signal': 'Buy', 'Stoch %K': 'Sell', 'Awesome Osc.': 'Buy', 'ADX (14)': 'Trend (25)', 'BBands Pos.': 'Upper',
+         'EMA (20) vs Prezzo': 'Buy', 'SMA (50/200)': 'Wait', 'VWAP vs Prezzo': 'Buy'},
+        {'Asset Type': 'ETF', 'Crypto Rank': None, 'Market Cap': 2.21e10, 'Nome Asset': 'ProSh UltraPro QQQ (TQQQ)', 'Ticker': 'TQQQ', 'TradingViewSymbol': 'NASDAQ:TQQQ', 'Prezzo Attuale ($)': 55.60, 'Var. 1H (%)': 0.4, 'Var. 12H (%)': 1.1, 'Var. 24H (%)': 1.5, 'Var. 1W (%)': 4.0,
+         'AI Signal': '🔥 Strong Buy', 'OBV Signal': 'Buy', 'ATR Signal': 'Buy',
+         'RSI (14)': 'Buy', 'StochRSI %K': 'Buy', 'MACD Signal': 'Buy', 'Stoch %K': 'Buy', 'Awesome Osc.': 'Buy', 'ADX (14)': 'Strong (38)', 'BBands Pos.': 'Upper',
+         'EMA (20) vs Prezzo': 'Buy', 'SMA (50/200)': 'Buy', 'VWAP vs Prezzo': 'Buy'},
     ]
     df = pd.DataFrame(data)
     asset_type_order = {'Crypto': 0, 'Stock': 1, 'ETF': 2}
     df['AssetTypeSort'] = df['Asset Type'].map(asset_type_order)
-    df['PrimarySortKey'] = df.apply(lambda row: row['Crypto Rank'] if row['Asset Type'] == 'Crypto' else -row['Market Cap'], axis=1)
+    # Per crypto, usa Crypto Rank. Per stocks/ETF, usa -Market Cap per ordinare da più grande a più piccolo
+    df['PrimarySortKey'] = df.apply(
+        lambda row: row['Crypto Rank'] if row['Asset Type'] == 'Crypto' else -row['Market Cap'], 
+        axis=1
+    )
     df.sort_values(by=['AssetTypeSort', 'PrimarySortKey'], ascending=[True, True], inplace=True)
+    # Rimuoviamo le colonne usate solo per l'ordinamento e non visualizzate
+    df.drop(columns=['Asset Type', 'Crypto Rank', 'Market Cap', 'AssetTypeSort', 'PrimarySortKey'], inplace=True, errors='ignore')
     return df
 
-def determine_style_for_cell(val, column_name=""):
-    """Determina solo gli attributi CSS color e font-weight per una cella."""
+def determine_style_for_cell(val, column_name_original=""):
+    """Determina gli attributi CSS color e font-weight per una cella."""
+    # NON usare i nomi rinominati qui, ma i nomi delle colonne del DataFrame
+    # PRIMA che vengano passati allo Styler e rinominati per la visualizzazione.
+    # Quindi, column_name_original si riferisce a 'AI Signal', 'Var. 1H (%)', 'ADX (14)', ecc.
+
     color_css = ""
     font_weight_css = ""
 
     # Gestione Variazioni Percentuali (valore numerico)
-    if isinstance(val, (int, float)) and "%" in column_name:
+    if isinstance(val, (int, float)) and "%" in column_name_original: # Es. 'Var. 1H (%)'
         if val > 0: color_css = 'color: green'
         elif val < 0: color_css = 'color: red'
-        else: color_css = 'color: gray' # Per 0.0%
+        else: color_css = 'color: gray'
 
     # Gestione Segnali Testuali
     elif isinstance(val, str):
-        val_upper = val.upper()
-        # Segnali AI
-        if "AI SIGNAL" in column_name.upper():
+        val_upper = val.upper() # Per controlli case-insensitive
+        
+        if column_name_original == 'AI Signal':
             if 'STRONG BUY' in val_upper: color_css = 'color: darkgreen'; font_weight_css = 'font-weight: bold'
             elif 'BUY' in val_upper: color_css = 'color: green'; font_weight_css = 'font-weight: bold'
             elif 'STRONG SELL' in val_upper: color_css = 'color: darkred'; font_weight_css = 'font-weight: bold'
             elif 'SELL' in val_upper: color_css = 'color: red'; font_weight_css = 'font-weight: bold'
             elif 'NEUTRAL' in val_upper: color_css = 'color: gray'
-        # ADX
-        elif "ADX" == column_name.upper():
+        
+        elif column_name_original == 'ADX (14)':
+            # La stringa fittizia è tipo "Strong (40)"
             if 'STRONG' in val_upper or 'TREND' in val_upper: color_css = 'color: green'
             elif 'WEAK' in val_upper or 'NO TREND' in val_upper: color_css = 'color: gray'
-            else: color_css = 'color: gray' # Default
-        # Bollinger Bands Position
-        elif "BB POS." == column_name.upper():
+            else: color_css = 'color: gray' 
+        
+        elif column_name_original == 'BBands Pos.':
             if 'UPPER' in val_upper: color_css = 'color: red'
             elif 'LOWER' in val_upper: color_css = 'color: green'
             elif 'MID' in val_upper: color_css = 'color: gray'
-        # OBV Signal, ATR Signal e altri indicatori Buy/Sell/Wait
+        
+        # Per tutti gli altri indicatori con segnali Buy/Sell/Wait (OBV Signal, ATR Signal, RSI, etc.)
         else:
             if 'BUY' in val_upper: color_css = 'color: green'; font_weight_css = 'font-weight: bold'
             elif 'SELL' in val_upper: color_css = 'color: red'; font_weight_css = 'font-weight: bold'
             elif 'WAIT' in val_upper or 'NEUTRAL' in val_upper: color_css = 'color: gray'
     
-    # Combina gli stili CSS
     final_style = []
     if color_css: final_style.append(color_css)
     if font_weight_css: final_style.append(font_weight_css)
@@ -97,15 +146,29 @@ def determine_style_for_cell(val, column_name=""):
 # --- Interfaccia Utente Streamlit ---
 st.set_page_config(layout="wide", page_title="Indicatori Trading Dashboard")
 st.title("🔥📊 Dashboard Indicatori Crypto & Stocks")
-st.caption(f"Versione: 0.1.2 | Data: {datetime.now().strftime('%Y-%m-%d')}")
+st.caption(f"Versione: 0.1.3 | Data: {datetime.now().strftime('%Y-%m-%d')}")
 
 df_data_processed = get_fictional_data()
 
-# Colonna Link TradingView come testo Markdown
 df_data_processed['TV Link'] = df_data_processed['TradingViewSymbol'].apply(
-    lambda x: f"[📈](https://www.tradingview.com/chart/?symbol={x})" # Solo icona come testo del link
+    lambda x: f"<a href='https://www.tradingview.com/chart/?symbol={x}' target='_blank' style='text-decoration:none; color:inherit; font-size: 1.2em;'>📈</a>"
 )
+# Rimuovere TradingViewSymbol dopo aver creato il link se non serve più
+df_data_processed.drop(columns=['TradingViewSymbol'], inplace=True, errors='ignore')
 
+
+# Definisci l'ordine e i nomi delle colonne come appariranno nel DataFrame PRIMA della ridenominazione per la visualizzazione
+# Questi sono i nomi che la funzione di styling si aspetta
+cols_for_styling_logic = [ # Nomi originali (o quasi) che la funzione di styling usa internamente
+    'Var. 1H (%)', 'Var. 12H (%)', 'Var. 24H (%)', 'Var. 1W (%)',
+    'AI Signal', 'OBV Signal', 'ATR Signal',
+    'RSI (14)', 'StochRSI %K', 'MACD Signal', 'Stoch %K', 'Awesome Osc.',
+    'ADX (14)', 'BBands Pos.',
+    'EMA (20) vs Prezzo', 'SMA (50/200)', 'VWAP vs Prezzo'
+]
+
+# Colonne da visualizzare e loro ordine
+# Usiamo i nomi originali qui perché df_data_processed li ha ancora
 original_display_cols_ordered = [
     'Nome Asset', 'Ticker', 'TV Link', 'Prezzo Attuale ($)',
     'Var. 1H (%)', 'Var. 12H (%)', 'Var. 24H (%)', 'Var. 1W (%)',
@@ -114,66 +177,75 @@ original_display_cols_ordered = [
     'ADX (14)', 'BBands Pos.',
     'EMA (20) vs Prezzo', 'SMA (50/200)', 'VWAP vs Prezzo'
 ]
-df_display = df_data_processed[original_display_cols_ordered].copy()
+df_to_display_styled = df_data_processed[original_display_cols_ordered].copy()
 
-df_display.rename(columns={
-    'Prezzo Attuale ($)': 'Prezzo ($)', 'TV Link': '📈 TV', # Header per il link
+
+# Rinomina le colonne SOLO per la visualizzazione finale (header tabella)
+# La funzione di styling (determine_style_for_cell) usa i nomi PRIMA di questa ridenominazione.
+rename_map_for_display = {
+    'Prezzo Attuale ($)': 'Prezzo ($)', 'TV Link': '📈', # Header per il link solo icona
     'Awesome Osc.': 'AO', 'StochRSI %K': 'SRSI %K', 'MACD Signal': 'MACD', 'Stoch %K': 'Stoch K',
     'ADX (14)': 'ADX', 'BBands Pos.': 'BB Pos.', 'OBV Signal': 'OBV', 'ATR Signal': 'ATR',
     'EMA (20) vs Prezzo': 'EMA20/P', 'SMA (50/200)': 'SMA50/200', 'VWAP vs Prezzo': 'VWAP/P'
-}, inplace=True)
+}
+df_to_display_styled.rename(columns=rename_map_for_display, inplace=True)
 
-renamed_price_col = ['Prezzo ($)']
-renamed_var_cols = ['Var. 1H (%)', 'Var. 12H (%)', 'Var. 24H (%)', 'Var. 1W (%)']
-renamed_ai_signal_col = ['AI Signal']
-renamed_oscillator_cols = ['RSI (14)', 'SRSI %K', 'MACD', 'Stoch K', 'AO']
-renamed_trend_strength_vol_cols = ['ADX', 'BB Pos.', 'OBV', 'ATR']
-renamed_ma_cols = ['EMA20/P', 'SMA50/200', 'VWAP/P']
-# Non includere '📈 TV' in cols_to_style se non vuoi applicare determine_style_for_cell ad esso
-cols_to_style = renamed_var_cols + renamed_ai_signal_col + renamed_oscillator_cols + \
-                renamed_trend_strength_vol_cols + renamed_ma_cols
 
+# Definisci i formattatori testuali (per %, $)
 formatters = {}
-for col in renamed_var_cols:
-    formatters[col] = lambda x: f"{x:+.1f}%" if isinstance(x, (int, float)) else x
-formatters[renamed_price_col[0]] = "${:,.2f}"
+# Applica ai nomi delle colonne *dopo* la ridenominazione (quelli in df_to_display_styled)
+for col_header in df_to_display_styled.columns:
+    if "%" in col_header: # Es. 'Var. 1H (%)'
+         formatters[col_header] = lambda x: f"{x:+.1f}%" if isinstance(x, (int, float)) else x
+    elif col_header == 'Prezzo ($)':
+        formatters[col_header] = "${:,.2f}"
 
-# Applicazione dello Styler
-styled_df = df_display.style
 
-# Applica stili di colore/peso
-for col_name in df_display.columns:
-    if col_name in cols_to_style:
-        styled_df = styled_df.apply(lambda s: s.map(lambda x: determine_style_for_cell(x, column_name=col_name)), subset=[col_name])
+# Applica lo Styler
+styled_df = df_to_display_styled.style
+
+# Applica stili di colore/peso cella per cella, passando il nome originale della colonna
+# per far funzionare la logica interna di determine_style_for_cell
+for original_col_name in original_display_cols_ordered: # Itera sui nomi originali
+    # Trova il nome rinominato corrispondente se esiste, altrimenti usa l'originale
+    displayed_col_name = rename_map_for_display.get(original_col_name, original_col_name)
+    
+    if original_col_name in cols_for_styling_logic and displayed_col_name in df_to_display_styled.columns:
+        # Applica lo style alla colonna rinominata (displayed_col_name)
+        # ma la funzione di styling usa original_col_name per la sua logica interna
+        styled_df = styled_df.apply(
+            lambda series: series.map(lambda val: determine_style_for_cell(val, column_name_original=original_col_name)),
+            subset=[displayed_col_name]
+        )
 
 styled_df = styled_df.format(formatters) # Applica formattazione testuale
 
-# Applica proprietà generali della tabella (allineamenti, etc.)
-# Nota: '📈 TV' è la colonna rinominata per il link
-styled_df = styled_df.set_properties(**{'text-align': 'center'}, subset=cols_to_style + ['Ticker', '📈 TV'])
-styled_df = styled_df.set_properties(**{'text-align': 'right'}, subset=renamed_price_col)
+# Proprietà generali della tabella
+styled_df = styled_df.set_properties(**{'text-align': 'center'}, subset=df_to_display_styled.columns.drop(['Nome Asset', 'Prezzo ($)'])) # Centra quasi tutto
+styled_df = styled_df.set_properties(**{'text-align': 'right'}, subset=['Prezzo ($)'])
 styled_df = styled_df.set_properties(**{'text-align': 'left'}, subset=['Nome Asset'])
-# Stili di tabella per padding e font size (non più necessari qui se st.dataframe li gestisce bene)
-# styled_df = styled_df.set_table_styles([
-#     {'selector': 'th', 'props': [('text-align', 'center'), ('background-color', '#f0f2f6'), ('padding', '0.2rem'), ('font-size', '0.75em')]},
-#     {'selector': 'td', 'props': [('padding', '0.2rem 0.3rem'), ('font-size', '0.75em')]},
-# ])
+styled_df = styled_df.set_table_styles([
+    {'selector': 'th', 'props': [('text-align', 'center'), ('background-color', '#f0f2f6'), ('padding', '0.2rem'), ('font-size', '0.75em')]},
+    {'selector': 'td', 'props': [('padding', '0.2rem 0.3rem'), ('font-size', '0.75em')]},
+])
+
 
 st.markdown("#### Segnali Tecnici Aggregati e Individuali")
-st.dataframe(styled_df, use_container_width=True, hide_index=True)
+# Ora che usiamo st.dataframe, il link markdown dovrebbe funzionare
+st.dataframe(styled_df, use_container_width=True, hide_index=True, unsafe_allow_html=True) # unsafe_allow_html per il link TV
 
 
 # --- Legenda Indicatori ---
+# (come versione 0.1.1, ma assicurati che i nomi brevi siano usati consistentemente se vuoi)
 st.subheader("📜 Legenda Dettagliata Indicatori e Colonne")
 st.markdown("---")
 st.markdown("##### Informazioni Generali & Link")
 st.markdown("""
 - **Nome Asset**: Nome completo dell'azione o criptovaluta/ETF.
 - **Ticker**: Simbolo univoco dell'asset sul mercato.
-- **📈 TV**: Link all'analisi grafica dell'asset su TradingView (l'icona è cliccabile).
+- **📈**: Link all'analisi grafica dell'asset su TradingView (l'icona è cliccabile).
 - **Prezzo ($)**: Ultimo prezzo registrato per l'asset, espresso in USD.
 """)
-# ... (Il resto della legenda come nella v0.1.1, assicurandosi che i nomi corrispondano)
 st.markdown("##### Variazioni di Prezzo (Momentum a Breve Termine)")
 st.markdown("""
 - **Var. 1H (%)**: Variazione percentuale del prezzo nelle ultime 1 ora.
@@ -222,6 +294,7 @@ st.markdown("""
 - **VWAP/P** (Prezzo vs VWAP): <span style='color:green; font-weight:bold;'>BUY</span> P > VWAP, <span style='color:red; font-weight:bold;'>SELL</span> P < VWAP, <span style='color:gray;'>WAIT</span>.
 """, unsafe_allow_html=True)
 
+
 # --- Sezione Error Logs ---
 st.subheader("⚠️ Error Logs")
 st.markdown("---")
@@ -243,10 +316,10 @@ with st.expander("Mostra/Nascondi Error Logs", expanded=False):
         st.rerun()
 
 st.markdown("---")
-st.caption(f"File: app.py | Versione: 0.1.2 | Ultima Modifica: {datetime.now().strftime('%Y-%m-%d')}")
+st.caption(f"File: app.py | Versione: 0.1.3 | Ultima Modifica: {datetime.now().strftime('%Y-%m-%d')}")
 
 # FILE_FOOTER_START
 # End of file: app.py
-# Version: 0.1.2
+# Version: 0.1.3
 # Last Modified: 2024-03-19
 # FILE_FOOTER_END
