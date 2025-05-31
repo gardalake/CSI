@@ -1,36 +1,31 @@
 # FILE_VERSION_START
 # Project: CryptoAndStocksIndicators
 # File: app.py
-# Version: 0.2.0
+# Version: 0.2.1
 # Date: 2024-03-21
 # Author: [Your Name/Nickname]
-# Description: Main Streamlit application. Imports data and UI utilities.
+# Description: All code consolidated into app.py. Minimal requirements for debugging. Real RSI for AAPL.
 # FILE_VERSION_END
 
 import streamlit as st
 import pandas as pd
-from datetime import datetime
+from datetime import datetime, timedelta
 import traceback
-
-# Import from our new modules
-try:
-    from config import COLS_TO_DISPLAY_ORDER_ORIGINAL_NAMES, RENAME_MAP_FOR_DISPLAY_HEADERS
-    from data_processing import get_processed_data_with_real_aapl_rsi, log_error_from_data_processing # Using the specific log func for now
-    from ui_utils import apply_cell_styles_for_display
-except ImportError as e:
-    st.error(f"Failed to import necessary modules. Please ensure config.py, data_processing.py, and ui_utils.py are in the same directory. Error: {e}")
-    st.stop()
-
+# import yfinance as yf # Temporarily commented for dependency debugging
+# import pandas_ta as ta # Temporarily commented for dependency debugging
 
 # --- Initial Setup and Session State for Error Logs ---
 if 'error_logs' not in st.session_state:
     st.session_state.error_logs = []
 
-# Re-define log_error here to use st.session_state, or pass st.session_state to data_processing
-# For simplicity here, data_processing.log_error_from_data_processing will handle its own logging
-# if called from within data_processing.py. If app.py needs to log, it can use its own instance.
+# --- Constants and Configuration (from former config.py) ---
+# (Base fictional data is now part of get_base_fictional_data function)
+RSI_PERIOD = 14
+RSI_OVERSOLD = 30
+RSI_OVERBOUGHT = 70
+
+# --- Logging Helper Function ---
 def log_error_app(message, asset_ticker=None, function_name=None, e=None):
-    """App-specific error logger that uses st.session_state."""
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     log_entry = f"**Timestamp:** {timestamp}"
     if function_name: log_entry += f" | **Function:** `{function_name}`"
@@ -41,44 +36,228 @@ def log_error_app(message, asset_ticker=None, function_name=None, e=None):
         log_entry += f"\n**Traceback Snippet:**\n```\n{''.join(tb_str[-2:])}\n```"
     st.session_state.error_logs.append(log_entry)
 
+# --- Data Fetching and Processing Functions (from former data_processing.py) ---
+def calculate_real_rsi_for_aapl(rsi_period=RSI_PERIOD, rsi_oversold=RSI_OVERSOLD, rsi_overbought=RSI_OVERBOUGHT):
+    """
+    Fetches historical data for AAPL using yfinance,
+    calculates the RSI, and returns the RSI signal ('Buy', 'Sell', 'Wait').
+    Temporarily disabled if yfinance/pandas-ta are commented out in requirements.
+    """
+    # Check if yfinance and pandas_ta are available (based on whether they were imported)
+    if 'yf' not in globals() or 'ta' not in globals():
+        log_error_app("yfinance or pandas-ta not available. Skipping real RSI calculation for AAPL.", "AAPL", "calculate_real_rsi_for_aapl")
+        return "N/A (Lib Missing)"
 
-# --- User Interface ---
+    try:
+        ticker = "AAPL"
+        end_date = datetime.now()
+        start_date = end_date - timedelta(days=180)
+        # global yf, ta # Make sure we are using the imported modules
+        stock_data = yf.download(ticker.upper(), start=start_date, end=end_date, progress=False, timeout=10)
+
+        if stock_data.empty:
+            log_error_app(f"No data returned for {ticker}.", ticker, "calculate_real_rsi_for_aapl")
+            return "N/A (No Data)"
+
+        stock_data.ta.rsi(length=rsi_period, append=True)
+        
+        rsi_col_name = f'RSI_{rsi_period}'
+        if rsi_col_name not in stock_data.columns or stock_data[rsi_col_name].empty or stock_data[rsi_col_name].isna().all():
+            log_error_app(f"RSI column '{rsi_col_name}' not found, empty, or all NaN for {ticker}.", ticker, "calculate_real_rsi_for_aapl")
+            return "N/A (Calc Issue)"
+
+        last_rsi = stock_data[rsi_col_name].dropna().iloc[-1]
+        
+        if pd.isna(last_rsi):
+            log_error_app(f"Last RSI value is NaN for {ticker} after dropna.", ticker, "calculate_real_rsi_for_aapl")
+            return "N/A (NaN RSI)"
+
+        if last_rsi < rsi_oversold: return "Buy"
+        elif last_rsi > rsi_overbought: return "Sell"
+        else: return "Wait"
+            
+    except Exception as e:
+        log_error_app(f"Failed to calculate RSI for {ticker}.", ticker, "calculate_real_rsi_for_aapl", e)
+        return "Error (Calc)"
+
+def get_base_fictional_data():
+    """Returns the base list of fictional asset data."""
+    return [
+        # Crypto
+        {'Asset Type': 'Crypto', 'Crypto Rank': 1, 'Market Cap': 1.35e12, 'Asset Name': 'Bitcoin', 'Ticker': 'BTC', 'Current Price ($)': 68500.50, 'Var. 1H (%)': 0.8, 'Var. 12H (%)': 2.0, 'Var. 24H (%)': 1.5, 'Var. 1W (%)': 3.0,
+         'AI Signal': 'Buy', 'MA Cross': 'Wait', 'RSI Div.': 'None', 'MACD Div.': 'None', 'Vol. Breakout': 'No Break', 'OBV Signal': 'Buy', 'ATR Signal': 'Buy',
+         'RSI (14)': 'Buy', 'StochRSI %K': 'Wait', 'MACD Signal': 'Buy', 'Stoch %K': 'Wait', 'Awesome Osc.': 'Buy', 'ADX (14)': 'Strong (40)', 'BBands Pos.': 'Mid',
+         'EMA (20) vs Price': 'Buy', 'SMA (50/200)': 'Buy', 'VWAP vs Price': 'Buy'},
+        {'Asset Type': 'Crypto', 'Crypto Rank': 2, 'Market Cap': 4.50e11, 'Asset Name': 'Ethereum', 'Ticker': 'ETH', 'Current Price ($)': 3750.00, 'Var. 1H (%)': -0.3, 'Var. 12H (%)': 1.0, 'Var. 24H (%)': 0.8, 'Var. 1W (%)': 2.5,
+         'AI Signal': 'Buy', 'MA Cross': 'Golden Cross (Buy)', 'RSI Div.': 'Bullish Div. (Buy)', 'MACD Div.': 'None', 'Vol. Breakout': 'No Break','OBV Signal': 'Wait', 'ATR Signal': 'Wait',
+         'RSI (14)': 'Wait', 'StochRSI %K': 'Buy', 'MACD Signal': 'Buy', 'Stoch %K': 'Buy', 'Awesome Osc.': 'Buy','ADX (14)': 'Trend (30)', 'BBands Pos.': 'Upper',
+         'EMA (20) vs Price': 'Buy', 'SMA (50/200)': 'Buy', 'VWAP vs Price': 'Buy'},
+        # Stocks & ETFs
+        {'Asset Type': 'Stock', 'Crypto Rank': None, 'Market Cap': 3.12e12, 'Asset Name': 'Microsoft Corp.', 'Ticker': 'MSFT', 'Current Price ($)': 420.55, 'Var. 1H (%)': 0.1, 'Var. 12H (%)': 0.5, 'Var. 24H (%)': 0.2, 'Var. 1W (%)': 1.5,
+         'AI Signal': '🔥 Strong Buy', 'MA Cross': 'Golden Cross (Buy)', 'RSI Div.': 'None', 'MACD Div.': 'None', 'Vol. Breakout': 'Bullish Break (Buy)', 'OBV Signal': 'Buy', 'ATR Signal': 'Buy',
+         'RSI (14)': 'Wait', 'StochRSI %K': 'Buy', 'MACD Signal': 'Buy', 'Stoch %K': 'Wait', 'Awesome Osc.': 'Buy', 'ADX (14)': 'Trend (28)', 'BBands Pos.': 'Mid',
+         'EMA (20) vs Price': 'Buy', 'SMA (50/200)': 'Buy', 'VWAP vs Price': 'Buy'},
+        {'Asset Type': 'Stock', 'Crypto Rank': None, 'Market Cap': 2.63e12, 'Asset Name': 'Apple Inc.', 'Ticker': 'AAPL', 'Current Price ($)': 170.34, 'Var. 1H (%)': -0.2, 'Var. 12H (%)': -0.8, 'Var. 24H (%)': -0.5, 'Var. 1W (%)': -2.0,
+         'AI Signal': 'Sell', 'MA Cross': 'Wait', 'RSI Div.': 'Bearish Div. (Sell)', 'MACD Div.': 'Bearish Div. (Sell)', 'Vol. Breakout': 'No Break', 'OBV Signal': 'Sell', 'ATR Signal': 'Sell',
+         'RSI (14)': 'N/A (Real Calc)', 'StochRSI %K': 'Sell', 'MACD Signal': 'Sell', 'Stoch %K': 'Sell', 'Awesome Osc.': 'Sell', 'ADX (14)': 'Weak (18)', 'BBands Pos.': 'Upper',
+         'EMA (20) vs Price': 'Sell', 'SMA (50/200)': 'Wait', 'VWAP vs Price': 'Sell'},
+        {'Asset Type': 'Stock', 'Crypto Rank': None, 'Market Cap': 2.20e12, 'Asset Name': 'NVIDIA Corp.', 'Ticker': 'NVDA', 'Current Price ($)': 880.27, 'Var. 1H (%)': 0.5, 'Var. 12H (%)': 1.2, 'Var. 24H (%)': 2.1, 'Var. 1W (%)': 5.3,
+         'AI Signal': '🔥 Strong Buy', 'MA Cross': 'Golden Cross (Buy)', 'RSI Div.': 'None', 'MACD Div.': 'Bullish Div. (Buy)', 'Vol. Breakout': 'Bullish Break (Buy)', 'OBV Signal': 'Buy', 'ATR Signal': 'Buy',
+         'RSI (14)': 'Buy', 'StochRSI %K': 'Buy', 'MACD Signal': 'Buy', 'Stoch %K': 'Buy', 'Awesome Osc.': 'Buy', 'ADX (14)': 'Strong (35)', 'BBands Pos.': 'Upper',
+         'EMA (20) vs Price': 'Buy', 'SMA (50/200)': 'Buy', 'VWAP vs Price': 'Buy'},
+        {'Asset Type': 'Stock', 'Crypto Rank': None, 'Market Cap': 1.82e12, 'Asset Name': 'Amazon.com Inc.', 'Ticker': 'AMZN', 'Current Price ($)': 175.80, 'Var. 1H (%)': 0.0, 'Var. 12H (%)': -0.5, 'Var. 24H (%)': -1.0, 'Var. 1W (%)': -1.2,
+         'AI Signal': 'Strong Sell', 'MA Cross': 'Death Cross (Sell)', 'RSI Div.': 'None', 'MACD Div.': 'None', 'Vol. Breakout': 'Bearish Break (Sell)', 'OBV Signal': 'Sell', 'ATR Signal': 'Sell',
+         'RSI (14)': 'Sell', 'StochRSI %K': 'Sell', 'MACD Signal': 'Sell', 'Stoch %K': 'Sell', 'Awesome Osc.': 'Sell', 'ADX (14)': 'Trend (26)', 'BBands Pos.': 'Lower',
+         'EMA (20) vs Price': 'Sell', 'SMA (50/200)': 'Sell', 'VWAP vs Price': 'Sell'},
+        {'Asset Type': 'Stock', 'Crypto Rank': None, 'Market Cap': 1.75e12, 'Asset Name': 'Alphabet Inc. (GOOGL)', 'Ticker': 'GOOGL', 'Current Price ($)': 140.10, 'Var. 1H (%)': 0.0, 'Var. 12H (%)': 0.1, 'Var. 24H (%)': 0.7, 'Var. 1W (%)': 0.5,
+         'AI Signal': 'Neutral', 'MA Cross': 'Wait', 'RSI Div.': 'None', 'MACD Div.': 'None', 'Vol. Breakout': 'No Break', 'OBV Signal': 'Wait', 'ATR Signal': 'Wait',
+         'RSI (14)': 'Wait', 'StochRSI %K': 'Wait', 'MACD Signal': 'Wait', 'Stoch %K': 'Wait', 'Awesome Osc.': 'Wait', 'ADX (14)': 'No Trend (15)', 'BBands Pos.': 'Mid',
+         'EMA (20) vs Price': 'Wait', 'SMA (50/200)': 'Buy', 'VWAP vs Price': 'Wait'},
+        {'Asset Type': 'Stock', 'Crypto Rank': None, 'Market Cap': 1.22e12, 'Asset Name': 'Meta Platforms Inc.', 'Ticker': 'META', 'Current Price ($)': 480.12, 'Var. 1H (%)': -0.1, 'Var. 12H (%)': 0.0, 'Var. 24H (%)': -0.8, 'Var. 1W (%)': 0.2,
+         'AI Signal': 'Neutral', 'MA Cross': 'Wait', 'RSI Div.': 'None', 'MACD Div.': 'None', 'Vol. Breakout': 'No Break', 'OBV Signal': 'Wait', 'ATR Signal': 'Wait',
+         'RSI (14)': 'Wait', 'StochRSI %K': 'Sell', 'MACD Signal': 'Wait', 'Stoch %K': 'Sell', 'Awesome Osc.': 'Wait', 'ADX (14)': 'Weak (19)', 'BBands Pos.': 'Mid',
+         'EMA (20) vs Price': 'Wait', 'SMA (50/200)': 'Wait', 'VWAP vs Price': 'Sell'},
+        {'Asset Type': 'Stock', 'Crypto Rank': None, 'Market Cap': 5.60e11, 'Asset Name': 'Tesla, Inc.', 'Ticker': 'TSLA', 'Current Price ($)': 177.45, 'Var. 1H (%)': -0.7, 'Var. 12H (%)': -1.5, 'Var. 24H (%)': -3.0, 'Var. 1W (%)': -6.5,
+         'AI Signal': 'Strong Sell', 'MA Cross': 'Death Cross (Sell)', 'RSI Div.': 'Bearish Div. (Sell)', 'MACD Div.': 'Bearish Div. (Sell)', 'Vol. Breakout': 'Bearish Break (Sell)', 'OBV Signal': 'Sell', 'ATR Signal': 'Sell',
+         'RSI (14)': 'Sell', 'StochRSI %K': 'Sell', 'MACD Signal': 'Sell', 'Stoch %K': 'Sell', 'Awesome Osc.': 'Sell', 'ADX (14)': 'Strong (42)', 'BBands Pos.': 'Lower',
+         'EMA (20) vs Price': 'Sell', 'SMA (50/200)': 'Sell', 'VWAP vs Price': 'Sell'},
+        {'Asset Type': 'Stock', 'Crypto Rank': None, 'Market Cap': 2.20e8, 'Asset Name': 'Rigetti Computing (GTI)', 'Ticker': 'RGTI', 'Current Price ($)': 1.52, 'Var. 1H (%)': -0.5, 'Var. 12H (%)': -1.0, 'Var. 24H (%)': -1.2, 'Var. 1W (%)': -3.5,
+         'AI Signal': 'Sell', 'MA Cross': 'Death Cross (Sell)', 'RSI Div.': 'None', 'MACD Div.': 'None', 'Vol. Breakout': 'No Break', 'OBV Signal': 'Sell', 'ATR Signal': 'Wait',
+         'RSI (14)': 'Buy', 'StochRSI %K': 'Buy', 'MACD Signal': 'Sell', 'Stoch %K': 'Buy', 'Awesome Osc.': 'Sell', 'ADX (14)': 'Weak (17)', 'BBands Pos.': 'Lower',
+         'EMA (20) vs Price': 'Sell', 'SMA (50/200)': 'Sell', 'VWAP vs Price': 'Sell'},
+        {'Asset Type': 'Stock', 'Crypto Rank': None, 'Market Cap': 2.10e9, 'Asset Name': 'IonQ Inc. (Quantum)', 'Ticker': 'IONQ', 'Current Price ($)': 10.30, 'Var. 1H (%)': 0.0, 'Var. 12H (%)': -0.2, 'Var. 24H (%)': 0.1, 'Var. 1W (%)': -1.0,
+         'AI Signal': 'Neutral', 'MA Cross': 'Wait', 'RSI Div.': 'None', 'MACD Div.': 'None', 'Vol. Breakout': 'No Break', 'OBV Signal': 'Wait', 'ATR Signal': 'Wait',
+         'RSI (14)': 'Wait', 'StochRSI %K': 'Wait', 'MACD Signal': 'Wait', 'Stoch %K': 'Wait', 'Awesome Osc.': 'Wait', 'ADX (14)': 'No Trend (12)', 'BBands Pos.': 'Mid',
+         'EMA (20) vs Price': 'Wait', 'SMA (50/200)': 'Wait', 'VWAP vs Price': 'Wait'},
+        {'Asset Type': 'ETF', 'Crypto Rank': None, 'Market Cap': 5.50e8, 'Asset Name': 'ProSh Volatil ST Fut (UVXY)', 'Ticker': 'UVXY', 'Current Price ($)': 8.50, 'Var. 1H (%)': 1.0, 'Var. 12H (%)': 2.5, 'Var. 24H (%)': 5.1, 'Var. 1W (%)': 10.0,
+         'AI Signal': 'Buy', 'MA Cross': 'Wait', 'RSI Div.': 'None', 'MACD Div.': 'None', 'Vol. Breakout': 'Bullish Break (Buy)', 'OBV Signal': 'Buy', 'ATR Signal': 'Buy',
+         'RSI (14)': 'Sell', 'StochRSI %K': 'Sell', 'MACD Signal': 'Buy', 'Stoch %K': 'Sell', 'Awesome Osc.': 'Buy', 'ADX (14)': 'Trend (25)', 'BBands Pos.': 'Upper',
+         'EMA (20) vs Price': 'Buy', 'SMA (50/200)': 'Wait', 'VWAP vs Price': 'Buy'},
+        {'Asset Type': 'ETF', 'Crypto Rank': None, 'Market Cap': 2.21e10, 'Asset Name': 'ProSh UltraPro QQQ (TQQQ)', 'Ticker': 'TQQQ', 'Current Price ($)': 55.60, 'Var. 1H (%)': 0.4, 'Var. 12H (%)': 1.1, 'Var. 24H (%)': 1.5, 'Var. 1W (%)': 4.0,
+         'AI Signal': '🔥 Strong Buy', 'MA Cross': 'Golden Cross (Buy)', 'RSI Div.': 'None', 'MACD Div.': 'None', 'Vol. Breakout': 'No Break', 'OBV Signal': 'Buy', 'ATR Signal': 'Buy',
+         'RSI (14)': 'Buy', 'StochRSI %K': 'Buy', 'MACD Signal': 'Buy', 'Stoch %K': 'Buy', 'Awesome Osc.': 'Buy', 'ADX (14)': 'Strong (38)', 'BBands Pos.': 'Upper',
+         'EMA (20) vs Price': 'Buy', 'SMA (50/200)': 'Buy', 'VWAP vs Price': 'Buy'},
+    ]
+
+def get_processed_data_with_real_aapl_rsi():
+    """Generates data for the table. For AAPL, RSI is calculated from real data if libs are available."""
+    base_df = pd.DataFrame(get_base_fictional_data())
+
+    # Calculate real RSI for AAPL and update its row
+    if 'AAPL' in base_df['Ticker'].values:
+        aapl_rsi_signal = calculate_real_rsi_for_aapl() # Will return "N/A (Lib Missing)" if yf/ta not imported
+        base_df.loc[base_df['Ticker'] == 'AAPL', 'RSI (14)'] = aapl_rsi_signal
+    else:
+        log_error_app("AAPL ticker not found in base data for RSI update.", "AAPL", "get_processed_data_with_real_aapl_rsi")
+
+    # Sorting logic
+    asset_type_order = {'Crypto': 0, 'Stock': 1, 'ETF': 2}
+    if 'Asset Type' in base_df.columns: # Check if 'Asset Type' was in the base data
+        base_df['AssetTypeSortCol'] = base_df['Asset Type'].map(asset_type_order)
+        if 'Crypto Rank' in base_df.columns and 'Market Cap' in base_df.columns:
+            base_df['PrimarySortKeyCol'] = base_df.apply(
+                lambda row: row['Crypto Rank'] if row['Asset Type'] == 'Crypto' and pd.notna(row['Crypto Rank']) else -row['Market Cap'], 
+                axis=1
+            )
+            base_df.sort_values(by=['AssetTypeSortCol', 'PrimarySortKeyCol'], ascending=[True, True], inplace=True)
+            base_df.drop(columns=['AssetTypeSortCol', 'PrimarySortKeyCol'], inplace=True, errors='ignore')
+    
+    # Drop columns used only for sorting/setup if they were part of the base data
+    base_df.drop(columns=['Asset Type', 'Crypto Rank', 'Market Cap'], inplace=True, errors='ignore')
+    return base_df
+
+# --- UI Styling Function (from former ui_utils.py) ---
+def apply_cell_styles_for_display(val, column_name_displayed=""):
+    """Determines CSS color and font-weight attributes for a cell."""
+    color_css = ""
+    font_weight_css = ""
+    if isinstance(val, (int, float)) and "%" in column_name_displayed:
+        if val > 0: color_css = 'color: green'
+        elif val < 0: color_css = 'color: red'
+        else: color_css = 'color: gray'
+    elif isinstance(val, str):
+        val_upper = val.upper()
+        current_col_name_upper = column_name_displayed.upper()
+
+        if current_col_name_upper == 'AI SIGNAL':
+            if 'STRONG BUY' in val_upper: color_css = 'color: darkgreen'; font_weight_css = 'font-weight: bold'
+            elif 'BUY' in val_upper: color_css = 'color: green'; font_weight_css = 'font-weight: bold'
+            elif 'STRONG SELL' in val_upper: color_css = 'color: darkred'; font_weight_css = 'font-weight: bold'
+            elif 'SELL' in val_upper: color_css = 'color: red'; font_weight_css = 'font-weight: bold'
+            elif 'NEUTRAL' in val_upper: color_css = 'color: gray'
+        elif current_col_name_upper == 'ADX':
+            if 'STRONG' in val_upper or 'TREND' in val_upper: color_css = 'color: green'
+            elif 'WEAK' in val_upper or 'NO TREND' in val_upper: color_css = 'color: gray'
+            else: color_css = 'color: gray'
+        elif current_col_name_upper == 'BB POS.':
+            if 'UPPER' in val_upper: color_css = 'color: red'
+            elif 'LOWER' in val_upper: color_css = 'color: green'
+            elif 'MID' in val_upper: color_css = 'color: gray'
+        elif current_col_name_upper in ['OBV', 'ATR', 'RSI (14)', 'SRSI %K', 'MACD', 'STOCH K', 'AO', 
+                                        'EMA20/P', 'SMA50/200', 'VWAP/P', 
+                                        'MA CROSS', 'RSI DIV', 'MACD DIV', 'VOL BREAK']:
+            if 'BUY' in val_upper or 'BULLISH' in val_upper or 'GOLDEN' in val_upper:
+                color_css = 'color: green'; font_weight_css = 'font-weight: bold'
+            elif 'SELL' in val_upper or 'BEARISH' in val_upper or 'DEATH' in val_upper:
+                color_css = 'color: red'; font_weight_css = 'font-weight: bold'
+            elif 'WAIT' in val_upper or 'NEUTRAL' in val_upper or 'NONE' in val_upper or 'NO BREAK' in val_upper or 'MID' in val_upper or 'N/A' in val_upper or 'ERROR' in val_upper:
+                color_css = 'color: gray'
+    
+    final_style = []
+    if color_css: final_style.append(color_css)
+    if font_weight_css: final_style.append(font_weight_css)
+    return '; '.join(final_style) if final_style else None
+
+# --- Main User Interface ---
 st.set_page_config(layout="wide", page_title="Trading Indicators Dashboard")
 st.title("🔥📊 Trading Indicators Dashboard")
-st.caption(f"Version: 0.2.0 | Date: {datetime.now().strftime('%Y-%m-%d')}")
+st.caption(f"Version: 0.2.1 | Date: {datetime.now().strftime('%Y-%m-%d')}")
 
-# Get data (potentially with real AAPL RSI)
+# Try to import yfinance and pandas_ta. If they fail (because they are commented out in requirements.txt),
+# the real RSI calculation will be skipped.
 try:
-    df_processed_data = get_processed_data_with_real_aapl_rsi()
-except Exception as e_data:
-    log_error_app("Critical error in get_processed_data_with_real_aapl_rsi.", function_name="main_app_flow", e=e_data)
-    st.error("Could not load data. Please check the error logs.")
-    st.stop()
+    import yfinance as yf
+    import pandas_ta as ta
+except ImportError:
+    yf = None
+    ta = None
+    if 'yf_ta_import_error_logged' not in st.session_state: # Log only once
+        log_error_app("yfinance or pandas-ta not found. Real-time calculations will be skipped.", function_name="main_app_imports")
+        st.session_state.yf_ta_import_error_logged = True
+    # st.warning("yfinance or pandas-ta is not installed. Real-time calculations will be skipped. Please check requirements.txt.")
 
 
-# Select and rename columns for display
-if not df_processed_data.empty:
-    # Ensure all columns in COLS_TO_DISPLAY_ORDER_ORIGINAL_NAMES exist in df_processed_data
-    missing_cols = [col for col in COLS_TO_DISPLAY_ORDER_ORIGINAL_NAMES if col not in df_processed_data.columns]
-    if missing_cols:
-        log_error_app(f"Columns missing from processed data: {missing_cols}", function_name="main_app_flow_column_selection")
-        st.error(f"Data processing error: columns {missing_cols} are missing. Displaying available data.")
-        # Attempt to display with available columns, or stop
-        available_cols_for_display = [col for col in COLS_TO_DISPLAY_ORDER_ORIGINAL_NAMES if col in df_processed_data.columns]
-        if not available_cols_for_display:
-            st.error("No displayable columns found after data processing errors.")
-            st.stop()
-        df_for_styling = df_processed_data[available_cols_for_display].copy()
-    else:
-        df_for_styling = df_processed_data[COLS_TO_DISPLAY_ORDER_ORIGINAL_NAMES].copy()
+df_processed_data = get_processed_data_with_real_aapl_rsi()
 
-    df_for_styling.rename(columns=RENAME_MAP_FOR_DISPLAY_HEADERS, inplace=True)
-else:
-    st.warning("No data to display after processing.")
-    st.stop()
+# Define column order using original names from df_processed_data
+cols_to_display_order = [
+    'Asset Name', 'Ticker', 'Current Price ($)',
+    'Var. 1H (%)', 'Var. 12H (%)', 'Var. 24H (%)', 'Var. 1W (%)',
+    'AI Signal', 
+    'MA Cross', 'RSI Div.', 'MACD Div.', 'Vol. Breakout',
+    'OBV Signal', 'ATR Signal',
+    'RSI (14)', 'StochRSI %K', 'MACD Signal', 'Stoch %K', 'Awesome Osc.',
+    'ADX (14)', 'BBands Pos.',
+    'EMA (20) vs Price', 'SMA (50/200)', 'VWAP vs Price'
+]
+
+# Ensure all selected columns exist in the DataFrame
+# (This should be true if get_processed_data_with_real_aapl_rsi works as expected)
+existing_cols_for_display = [col for col in cols_to_display_order if col in df_processed_data.columns]
+df_for_styling = df_processed_data[existing_cols_for_display].copy()
 
 
-# Define text formatters
+# Rename columns for display
+rename_map_for_display_headers = {
+    'Current Price ($)': 'Price ($)',
+    'Awesome Osc.': 'AO', 'StochRSI %K': 'SRSI %K', 'MACD Signal': 'MACD', 'Stoch %K': 'Stoch K',
+    'ADX (14)': 'ADX', 'BBands Pos.': 'BB Pos.', 'OBV Signal': 'OBV', 'ATR Signal': 'ATR',
+    'EMA (20) vs Price': 'EMA20/P', 'SMA (50/200)': 'SMA50/200', 
+    'VWAP vs Price': 'VWAP/P',
+    'MA Cross': 'MA Cross', 'RSI Div.': 'RSI Div', 'MACD Div.': 'MACD Div', 'Vol. Breakout': 'Vol Break'
+}
+df_for_styling.rename(columns=rename_map_for_display_headers, inplace=True)
+
 formatters = {}
 for col_header in df_for_styling.columns:
     if "%" in col_header:
@@ -86,7 +265,6 @@ for col_header in df_for_styling.columns:
     elif col_header == 'Price ($)':
         formatters[col_header] = "${:,.2f}"
 
-# Apply Styler
 styled_df = df_for_styling.style
 for col_name_in_styled_df in df_for_styling.columns:
     styled_df = styled_df.apply(
@@ -108,7 +286,6 @@ st.dataframe(styled_df, use_container_width=False, hide_index=True)
 
 
 # --- Legend ---
-# (Legend content remains the same as in v0.1.9, ensure it's all in English)
 st.subheader("📜 Detailed Indicators and Columns Legend")
 st.markdown("---")
 st.markdown("##### General Information")
@@ -117,6 +294,7 @@ st.markdown("""
 - **Ticker**: Unique market symbol for the asset.
 - **Price ($)**: Last recorded price for the asset, in USD.
 """)
+# ... (Rest of the legend as in v0.1.9)
 st.markdown("##### Price Variations (Short-Term Momentum)")
 st.markdown("""
 - **Var. 1H (%)**: Percentage price change in the last 1 hour.
@@ -167,7 +345,6 @@ st.markdown("""
 - **VWAP/P**: <span style='color:green; font-weight:bold;'>BUY</span> P > VWAP, <span style='color:red; font-weight:bold;'>SELL</span> P < VWAP, <span style='color:gray;'>WAIT</span>.
 """, unsafe_allow_html=True)
 
-
 # --- Error Logs Section ---
 st.subheader("⚠️ Error Logs")
 st.markdown("---")
@@ -180,20 +357,19 @@ with st.expander(expander_title, expanded=error_count > 0):
             if i < error_count - 1: st.markdown("---")
     else:
         st.info("No errors recorded so far.")
-    if st.button("Simulate App Error"): # Differentiated button name
+    if st.button("Simulate App Error  "): 
         try: 1 / 0
         except Exception as e_sim: log_error_app("This is a simulated app error.", asset_ticker="APP_SIM", function_name="simulate_app_error_button", e=e_sim)
         st.rerun()
-    if error_count > 0 and st.button("Clear All Error Logs"): # Differentiated button name
+    if error_count > 0 and st.button("Clear All Error Logs  "):
         st.session_state.error_logs = []
         st.rerun()
 
 st.markdown("---")
-st.caption(f"File: app.py | Version: 0.2.0 | Last Modified: {datetime.now().strftime('%Y-%m-%d')}")
-
+st.caption(f"File: app.py | Version: 0.2.1 | Last Modified: {datetime.now().strftime('%Y-%m-%d')}")
 
 # FILE_FOOTER_START
 # End of file: app.py
-# Version: 0.2.0
+# Version: 0.2.1
 # Last Modified: 2024-03-21
 # FILE_FOOTER_END
