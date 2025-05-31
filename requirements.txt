@@ -1,6 +1,6 @@
 streamlit
-pandas==2.2.0  # Ultima versione stabile di Pandas
-numpy>=1.26.0
-yfinance
-pandas-ta
-setuptools
+pandas
+numpy>=1.26.0  # Per compatibilità con Python 3.12+ (evita problemi con distutils)
+setuptools     # Aggiunto esplicitamente per sicurezza
+# yfinance     # Commentato temporaneamente per debug
+# pandas-ta    # Commentato temporaneamente per debug
