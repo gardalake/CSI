@@ -1,18 +1,25 @@
 # FILE_VERSION_START
 # Project: CryptoAndStocksIndicators
 # File: app.py
-# Version: 0.2.2
+# Version: 0.2.3
 # Date: 2024-03-21
 # Author: [Your Name/Nickname]
-# Description: Fixed TypeError in log_error_app when 'e' is None.
+# Description: Corrected log_error_app for e=None, further dependency debugging.
 # FILE_VERSION_END
 
 import streamlit as st
 import pandas as pd
 from datetime import datetime, timedelta
 import traceback
-# import yfinance as yf # Temporarily commented for dependency debugging
-# import pandas_ta as ta # Temporarily commented for dependency debugging
+# Tentativo di import, saranno None se fallisce e requirements.txt non li include
+try:
+    import yfinance as yf
+    import pandas_ta as ta
+    LIBS_AVAILABLE = True
+except ImportError:
+    yf = None
+    ta = None
+    LIBS_AVAILABLE = False
 
 # --- Initial Setup and Session State for Error Logs ---
 if 'error_logs' not in st.session_state:
@@ -24,53 +31,65 @@ RSI_OVERSOLD = 30
 RSI_OVERBOUGHT = 70
 
 # --- Logging Helper Function ---
-def log_error_app(message, asset_ticker=None, function_name=None, e=None): # 'e' can be None
+def log_error_app(message, asset_ticker=None, function_name=None, e=None):
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     log_entry = f"**Timestamp:** {timestamp}"
     if function_name: log_entry += f" | **Function:** `{function_name}`"
     if asset_ticker: log_entry += f" | **Asset:** `{asset_ticker}`"
     log_entry += f" | **Error:** {message}"
     
-    # Only try to format traceback if 'e' is a valid exception object
-    if e is not None and isinstance(e, Exception): # Check if e is an actual exception
+    if e is not None and isinstance(e, Exception):
         try:
-            tb_str = traceback.format_exception(etype=type(e), value=e, tb=e.__traceback__)
-            log_entry += f"\n**Traceback Snippet:**\n```\n{''.join(tb_str[-2:])}\n```"
-        except Exception as tb_ex: # Catch potential errors during traceback formatting
+            # Usa la forma più semplice di format_exception se disponibile o la forma completa
+            # La firma format_exception(exc, value, tb) è più vecchia.
+            # format_exception(exc) o format_exception(type(exc), exc, exc.__traceback__)
+            tb_str_list = traceback.format_exception(type(e), e, e.__traceback__)
+            log_entry += f"\n**Traceback Snippet:**\n```\n{''.join(tb_str_list[-2:])}\n```" # Last 2 lines
+        except Exception as tb_ex:
             log_entry += f"\n**Traceback Formatting Error:** {str(tb_ex)}"
-    elif e is not None: # If e is passed but not an exception (should not happen ideally)
-        log_entry += f"\n**Details (Non-Exception):** {str(e)}"
+            log_entry += f"\n**Original Exception Details:** {str(e)}" # Log l'eccezione originale se il traceback fallisce
+    elif e is not None: 
+        log_entry += f"\n**Details (Non-Exception object passed):** {str(e)}"
         
     st.session_state.error_logs.append(log_entry)
 
 # --- Data Fetching and Processing Functions ---
 def calculate_real_rsi_for_aapl(rsi_period=RSI_PERIOD, rsi_oversold=RSI_OVERSOLD, rsi_overbought=RSI_OVERBOUGHT):
-    if 'yf' not in globals() or 'ta' not in globals():
-        # Pass e=None explicitly or don't pass it if the function signature defaults e to None
-        log_error_app("yfinance or pandas-ta not available. Skipping real RSI calculation for AAPL.", 
-                      asset_ticker="AAPL", 
-                      function_name="calculate_real_rsi_for_aapl", 
-                      e=None) # Explicitly pass None for e
-        return "N/A (Lib Missing)"
+    global yf, ta # Accedi alle variabili globali yf, ta
+
+    if not LIBS_AVAILABLE or yf is None or ta is None: # Controllo più robusto
+        if 'yf_ta_missing_logged_calc' not in st.session_state: # Logga solo una volta da qui
+            log_error_app("yfinance or pandas-ta not available for calculation.", 
+                          asset_ticker="AAPL", 
+                          function_name="calculate_real_rsi_for_aapl", 
+                          e=None)
+            st.session_state.yf_ta_missing_logged_calc = True
+        return "N/A (Libs Missing)"
 
     try:
         ticker = "AAPL"
         end_date = datetime.now()
-        start_date = end_date - timedelta(days=180)
+        start_date = end_date - timedelta(days=180) # Abbastanza dati per RSI 14
+        
         stock_data = yf.download(ticker.upper(), start=start_date, end=end_date, progress=False, timeout=10)
 
         if stock_data.empty:
-            log_error_app(f"No data returned for {ticker}.", ticker, "calculate_real_rsi_for_aapl", e=None)
+            log_error_app(f"No data returned for {ticker} from yfinance.", ticker, "calculate_real_rsi_for_aapl", e=None)
             return "N/A (No Data)"
 
-        stock_data.ta.rsi(length=rsi_period, append=True)
-        
-        rsi_col_name = f'RSI_{rsi_period}'
-        if rsi_col_name not in stock_data.columns or stock_data[rsi_col_name].empty or stock_data[rsi_col_name].isna().all():
-            log_error_app(f"RSI column '{rsi_col_name}' not found, empty, or all NaN for {ticker}.", ticker, "calculate_real_rsi_for_aapl", e=None)
-            return "N/A (Calc Issue)"
+        # Assicurati che ci sia una colonna 'Close'
+        if 'Close' not in stock_data.columns:
+            log_error_app(f"'Close' column missing in yfinance data for {ticker}.", ticker, "calculate_real_rsi_for_aapl", e=None)
+            return "N/A (Data Format)"
 
-        last_rsi = stock_data[rsi_col_name].dropna().iloc[-1]
+        # Calcola RSI usando pandas_ta
+        rsi_series = stock_data.ta.rsi(close=stock_data['Close'], length=rsi_period) # Passa esplicitamente la colonna close
+        
+        if rsi_series is None or rsi_series.empty or rsi_series.isna().all():
+            log_error_app(f"RSI calculation returned empty or all NaN for {ticker}.", ticker, "calculate_real_rsi_for_aapl", e=None)
+            return "N/A (RSI Calc Issue)"
+
+        last_rsi = rsi_series.dropna().iloc[-1]
         
         if pd.isna(last_rsi):
             log_error_app(f"Last RSI value is NaN for {ticker} after dropna.", ticker, "calculate_real_rsi_for_aapl", e=None)
@@ -80,14 +99,19 @@ def calculate_real_rsi_for_aapl(rsi_period=RSI_PERIOD, rsi_oversold=RSI_OVERSOLD
         elif last_rsi > rsi_overbought: return "Sell"
         else: return "Wait"
             
-    except Exception as e_calc: # Renamed to e_calc to avoid conflict if e was passed
-        log_error_app(f"Failed to calculate RSI for {ticker}.", ticker, "calculate_real_rsi_for_aapl", e=e_calc)
+    except Exception as e_calc:
+        log_error_app(f"Exception during RSI calculation for {ticker}.", ticker, "calculate_real_rsi_for_aapl", e=e_calc)
         return "Error (Calc)"
 
 def get_base_fictional_data():
     """Returns the base list of fictional asset data."""
     return [
-        # Crypto
+        # ... (dati fittizi come prima, assicurati che 'RSI (14)' per AAPL sia un placeholder)
+        {'Asset Type': 'Stock', 'Crypto Rank': None, 'Market Cap': 2.63e12, 'Asset Name': 'Apple Inc.', 'Ticker': 'AAPL', 'Current Price ($)': 170.34, 'Var. 1H (%)': -0.2, 'Var. 12H (%)': -0.8, 'Var. 24H (%)': -0.5, 'Var. 1W (%)': -2.0,
+         'AI Signal': 'Sell', 'MA Cross': 'Wait', 'RSI Div.': 'Bearish Div. (Sell)', 'MACD Div.': 'Bearish Div. (Sell)', 'Vol. Breakout': 'No Break', 'OBV Signal': 'Sell', 'ATR Signal': 'Sell',
+         'RSI (14)': 'CALCULATING...', 'StochRSI %K': 'Sell', 'MACD Signal': 'Sell', 'Stoch %K': 'Sell', 'Awesome Osc.': 'Sell', 'ADX (14)': 'Weak (18)', 'BBands Pos.': 'Upper',
+         'EMA (20) vs Price': 'Sell', 'SMA (50/200)': 'Wait', 'VWAP vs Price': 'Sell'},
+        # ... (altri dati)
         {'Asset Type': 'Crypto', 'Crypto Rank': 1, 'Market Cap': 1.35e12, 'Asset Name': 'Bitcoin', 'Ticker': 'BTC', 'Current Price ($)': 68500.50, 'Var. 1H (%)': 0.8, 'Var. 12H (%)': 2.0, 'Var. 24H (%)': 1.5, 'Var. 1W (%)': 3.0,
          'AI Signal': 'Buy', 'MA Cross': 'Wait', 'RSI Div.': 'None', 'MACD Div.': 'None', 'Vol. Breakout': 'No Break', 'OBV Signal': 'Buy', 'ATR Signal': 'Buy',
          'RSI (14)': 'Buy', 'StochRSI %K': 'Wait', 'MACD Signal': 'Buy', 'Stoch %K': 'Wait', 'Awesome Osc.': 'Buy', 'ADX (14)': 'Strong (40)', 'BBands Pos.': 'Mid',
@@ -96,15 +120,10 @@ def get_base_fictional_data():
          'AI Signal': 'Buy', 'MA Cross': 'Golden Cross (Buy)', 'RSI Div.': 'Bullish Div. (Buy)', 'MACD Div.': 'None', 'Vol. Breakout': 'No Break','OBV Signal': 'Wait', 'ATR Signal': 'Wait',
          'RSI (14)': 'Wait', 'StochRSI %K': 'Buy', 'MACD Signal': 'Buy', 'Stoch %K': 'Buy', 'Awesome Osc.': 'Buy','ADX (14)': 'Trend (30)', 'BBands Pos.': 'Upper',
          'EMA (20) vs Price': 'Buy', 'SMA (50/200)': 'Buy', 'VWAP vs Price': 'Buy'},
-        # Stocks & ETFs
         {'Asset Type': 'Stock', 'Crypto Rank': None, 'Market Cap': 3.12e12, 'Asset Name': 'Microsoft Corp.', 'Ticker': 'MSFT', 'Current Price ($)': 420.55, 'Var. 1H (%)': 0.1, 'Var. 12H (%)': 0.5, 'Var. 24H (%)': 0.2, 'Var. 1W (%)': 1.5,
          'AI Signal': '🔥 Strong Buy', 'MA Cross': 'Golden Cross (Buy)', 'RSI Div.': 'None', 'MACD Div.': 'None', 'Vol. Breakout': 'Bullish Break (Buy)', 'OBV Signal': 'Buy', 'ATR Signal': 'Buy',
          'RSI (14)': 'Wait', 'StochRSI %K': 'Buy', 'MACD Signal': 'Buy', 'Stoch %K': 'Wait', 'Awesome Osc.': 'Buy', 'ADX (14)': 'Trend (28)', 'BBands Pos.': 'Mid',
          'EMA (20) vs Price': 'Buy', 'SMA (50/200)': 'Buy', 'VWAP vs Price': 'Buy'},
-        {'Asset Type': 'Stock', 'Crypto Rank': None, 'Market Cap': 2.63e12, 'Asset Name': 'Apple Inc.', 'Ticker': 'AAPL', 'Current Price ($)': 170.34, 'Var. 1H (%)': -0.2, 'Var. 12H (%)': -0.8, 'Var. 24H (%)': -0.5, 'Var. 1W (%)': -2.0,
-         'AI Signal': 'Sell', 'MA Cross': 'Wait', 'RSI Div.': 'Bearish Div. (Sell)', 'MACD Div.': 'Bearish Div. (Sell)', 'Vol. Breakout': 'No Break', 'OBV Signal': 'Sell', 'ATR Signal': 'Sell',
-         'RSI (14)': 'N/A (Real Calc)', 'StochRSI %K': 'Sell', 'MACD Signal': 'Sell', 'Stoch %K': 'Sell', 'Awesome Osc.': 'Sell', 'ADX (14)': 'Weak (18)', 'BBands Pos.': 'Upper',
-         'EMA (20) vs Price': 'Sell', 'SMA (50/200)': 'Wait', 'VWAP vs Price': 'Sell'},
         {'Asset Type': 'Stock', 'Crypto Rank': None, 'Market Cap': 2.20e12, 'Asset Name': 'NVIDIA Corp.', 'Ticker': 'NVDA', 'Current Price ($)': 880.27, 'Var. 1H (%)': 0.5, 'Var. 12H (%)': 1.2, 'Var. 24H (%)': 2.1, 'Var. 1W (%)': 5.3,
          'AI Signal': '🔥 Strong Buy', 'MA Cross': 'Golden Cross (Buy)', 'RSI Div.': 'None', 'MACD Div.': 'Bullish Div. (Buy)', 'Vol. Breakout': 'Bullish Break (Buy)', 'OBV Signal': 'Buy', 'ATR Signal': 'Buy',
          'RSI (14)': 'Buy', 'StochRSI %K': 'Buy', 'MACD Signal': 'Buy', 'Stoch %K': 'Buy', 'Awesome Osc.': 'Buy', 'ADX (14)': 'Strong (35)', 'BBands Pos.': 'Upper',
@@ -141,31 +160,57 @@ def get_base_fictional_data():
          'AI Signal': '🔥 Strong Buy', 'MA Cross': 'Golden Cross (Buy)', 'RSI Div.': 'None', 'MACD Div.': 'None', 'Vol. Breakout': 'No Break', 'OBV Signal': 'Buy', 'ATR Signal': 'Buy',
          'RSI (14)': 'Buy', 'StochRSI %K': 'Buy', 'MACD Signal': 'Buy', 'Stoch %K': 'Buy', 'Awesome Osc.': 'Buy', 'ADX (14)': 'Strong (38)', 'BBands Pos.': 'Upper',
          'EMA (20) vs Price': 'Buy', 'SMA (50/200)': 'Buy', 'VWAP vs Price': 'Buy'},
+
     ]
 
+
 def get_processed_data_with_real_aapl_rsi():
-    """Generates data for the table. For AAPL, RSI is calculated from real data if libs are available."""
-    base_df = pd.DataFrame(get_base_fictional_data())
+    base_df = pd.DataFrame(get_base_fictional_data()) # Get the full list
+    # Process AAPL RSI
     if 'AAPL' in base_df['Ticker'].values:
         aapl_rsi_signal = calculate_real_rsi_for_aapl()
         base_df.loc[base_df['Ticker'] == 'AAPL', 'RSI (14)'] = aapl_rsi_signal
     else:
         log_error_app("AAPL ticker not found in base data for RSI update.", "AAPL", "get_processed_data_with_real_aapl_rsi", e=None)
+    
+    # Sorting logic (needs Asset Type, Crypto Rank, Market Cap from the base_fictional_data temporarily)
+    # Re-add them if they were dropped, or ensure get_base_fictional_data provides them before this step.
+    # For simplicity, assuming get_base_fictional_data provides these for sorting:
+    temp_data_for_sorting = get_base_fictional_data() # Get fresh data with sorting keys
+    df_for_sorting = pd.DataFrame(temp_data_for_sorting)
 
     asset_type_order = {'Crypto': 0, 'Stock': 1, 'ETF': 2}
-    if 'Asset Type' in base_df.columns:
-        base_df['AssetTypeSortCol'] = base_df['Asset Type'].map(asset_type_order)
-        if 'Crypto Rank' in base_df.columns and 'Market Cap' in base_df.columns:
-            base_df['PrimarySortKeyCol'] = base_df.apply(
-                lambda row: row['Crypto Rank'] if row['Asset Type'] == 'Crypto' and pd.notna(row['Crypto Rank']) else -row['Market Cap'], 
-                axis=1
-            )
-            base_df.sort_values(by=['AssetTypeSortCol', 'PrimarySortKeyCol'], ascending=[True, True], inplace=True)
-            base_df.drop(columns=['AssetTypeSortCol', 'PrimarySortKeyCol'], inplace=True, errors='ignore')
-    base_df.drop(columns=['Asset Type', 'Crypto Rank', 'Market Cap'], inplace=True, errors='ignore')
-    return base_df
+    df_for_sorting['AssetTypeSortCol'] = df_for_sorting['Asset Type'].map(asset_type_order)
+    df_for_sorting['PrimarySortKeyCol'] = df_for_sorting.apply(
+        lambda row: row['Crypto Rank'] if row['Asset Type'] == 'Crypto' and pd.notna(row['Crypto Rank']) else -row['Market Cap'], 
+        axis=1
+    )
+    df_for_sorting.sort_values(by=['AssetTypeSortCol', 'PrimarySortKeyCol'], ascending=[True, True], inplace=True)
+    
+    # Update base_df with the sorted order and calculated AAPL RSI
+    # This is a bit complex; a better way would be to do all calcs, then sort.
+    # For now, let's ensure the AAPL RSI is preserved after sorting.
+    # Create a new df with sorted index from df_for_sorting and data from base_df (which has updated AAPL RSI)
+    
+    # Create a dictionary from base_df for easy lookup (Ticker as key)
+    # This base_df already has the updated AAPL RSI
+    data_dict = {row['Ticker']: row for index, row in base_df.iterrows()}
+    
+    # Reconstruct the DataFrame in the new sorted order
+    sorted_data_list = []
+    for ticker in df_for_sorting['Ticker']:
+        if ticker in data_dict:
+            sorted_data_list.append(data_dict[ticker])
+            
+    final_df = pd.DataFrame(sorted_data_list)
+    
+    # Drop temporary/setup columns before returning
+    final_df.drop(columns=['Asset Type', 'Crypto Rank', 'Market Cap'], inplace=True, errors='ignore')
+    return final_df
+
 
 # --- UI Styling Function ---
+# apply_cell_styles_for_display function remains the same as in v0.2.2
 def apply_cell_styles_for_display(val, column_name_displayed=""):
     color_css = ""
     font_weight_css = ""
@@ -198,8 +243,11 @@ def apply_cell_styles_for_display(val, column_name_displayed=""):
                 color_css = 'color: green'; font_weight_css = 'font-weight: bold'
             elif 'SELL' in val_upper or 'BEARISH' in val_upper or 'DEATH' in val_upper:
                 color_css = 'color: red'; font_weight_css = 'font-weight: bold'
-            elif 'WAIT' in val_upper or 'NEUTRAL' in val_upper or 'NONE' in val_upper or 'NO BREAK' in val_upper or 'MID' in val_upper or 'N/A' in val_upper or 'ERROR' in val_upper:
+            elif 'WAIT' in val_upper or 'NEUTRAL' in val_upper or 'NONE' in val_upper or 'NO BREAK' in val_upper or 'MID' in val_upper or 'N/A' in val_upper or 'ERROR' in val_upper: # Added (LIB MISSING)
                 color_css = 'color: gray'
+            # Specific for "N/A (Lib Missing)" or other N/A states from calculate_real_rsi_for_aapl
+            if '(LIB MISSING)' in val_upper or '(NO DATA)' in val_upper or '(CALC ISSUE)' in val_upper or '(NAN RSI)' in val_upper:
+                 color_css = 'color: orange' # Make library/data issues orange for visibility
     
     final_style = []
     if color_css: final_style.append(color_css)
@@ -207,21 +255,30 @@ def apply_cell_styles_for_display(val, column_name_displayed=""):
     return '; '.join(final_style) if final_style else None
 
 # --- Main User Interface ---
+# (The rest of the UI code from st.set_page_config onwards remains largely the same as v0.2.2)
+# Ensure that `df_processed_data = get_processed_data_with_real_aapl_rsi()` is called.
+# And the column definitions for display and renaming map are correct.
 st.set_page_config(layout="wide", page_title="Trading Indicators Dashboard")
 st.title("🔥📊 Trading Indicators Dashboard")
-st.caption(f"Version: 0.2.2 | Date: {datetime.now().strftime('%Y-%m-%d')}")
+st.caption(f"Version: 0.2.3 | Date: {datetime.now().strftime('%Y-%m-%d')}")
 
+# Try to import yfinance and pandas_ta. 
+# Global LIBS_AVAILABLE will be set based on this.
 try:
     import yfinance as yf
     import pandas_ta as ta
     LIBS_AVAILABLE = True
-except ImportError:
+    if 'yf_ta_import_success_logged' not in st.session_state: # Log success once
+        # log_error_app("Successfully imported yfinance and pandas-ta.", function_name="main_app_imports", e=None)
+        st.session_state.yf_ta_import_success_logged = True
+except ImportError as import_error:
     yf = None
     ta = None
     LIBS_AVAILABLE = False
-    if 'yf_ta_import_error_logged' not in st.session_state:
-        log_error_app("yfinance or pandas-ta not found. Real-time calculations will be skipped.", function_name="main_app_imports", e=None) # Pass e=None
+    if 'yf_ta_import_error_logged' not in st.session_state: 
+        log_error_app("yfinance or pandas-ta not found. Real-time calculations will be skipped.", function_name="main_app_imports", e=import_error)
         st.session_state.yf_ta_import_error_logged = True
+
 
 df_processed_data = get_processed_data_with_real_aapl_rsi()
 
@@ -275,7 +332,6 @@ st.markdown("#### Aggregated and Individual Technical Signals")
 st.dataframe(styled_df, use_container_width=False, hide_index=True)
 
 # --- Legend ---
-# (Legend content remains the same as in v0.1.9)
 st.subheader("📜 Detailed Indicators and Columns Legend")
 st.markdown("---")
 st.markdown("##### General Information")
@@ -346,19 +402,19 @@ with st.expander(expander_title, expanded=error_count > 0):
             if i < error_count - 1: st.markdown("---")
     else:
         st.info("No errors recorded so far.")
-    if st.button("Simulate App Error   "): 
+    if st.button("Simulate App Error    "): 
         try: 1 / 0
         except Exception as e_sim: log_error_app("This is a simulated app error.", asset_ticker="APP_SIM", function_name="simulate_app_error_button", e=e_sim)
         st.rerun()
-    if error_count > 0 and st.button("Clear All Error Logs   "):
+    if error_count > 0 and st.button("Clear All Error Logs    "):
         st.session_state.error_logs = []
         st.rerun()
 
 st.markdown("---")
-st.caption(f"File: app.py | Version: 0.2.2 | Last Modified: {datetime.now().strftime('%Y-%m-%d')}")
+st.caption(f"File: app.py | Version: 0.2.3 | Last Modified: {datetime.now().strftime('%Y-%m-%d')}")
 
 # FILE_FOOTER_START
 # End of file: app.py
-# Version: 0.2.2
+# Version: 0.2.3
 # Last Modified: 2024-03-21
 # FILE_FOOTER_END
