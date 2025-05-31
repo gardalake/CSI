@@ -1,6 +1,9 @@
 streamlit
-pandas>=2.0.0 # Lascia che pip scelga una versione recente di pandas
-numpy>=1.26.0 # NumPy moderno
+pandas==1.5.3
+numpy==1.23.5 # Questa è la versione che dava problemi con distutils, ma se il problema è altrove...
+# Oppure prova numpy==1.24.3 (l'ultima prima di 1.24.4) ma con Python < 3.12 sarebbe stato meglio
+# Con Python 3.13, numpy < 1.25 è problematico per distutils.
+# Quindi questo Tentativo B con numpy<1.25 probabilmente non funzionerà su Python 3.13.
 yfinance
 pandas-ta
 setuptools
