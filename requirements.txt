@@ -1,6 +1,6 @@
 streamlit
-pandas>=2.0.0     # O la versione che abbiamo stabilito essere ok
-numpy>=1.26.0   # O la versione che abbiamo stabilito essere ok
+pandas>=2.0.0 
+numpy>=1.26.0 
 setuptools
-yfinance
-pandas-ta
+yfinance     # DECOMMENTA QUESTO
+pandas-ta  # DECOMMENTA QUESTO
