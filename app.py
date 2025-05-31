@@ -1,16 +1,16 @@
 # FILE_VERSION_START
 # Project: CryptoAndStocksIndicators
 # File: app.py
-# Version: 0.1.7
-# Date: 2024-03-20
+# Version: 0.1.8
+# Date: 2024-03-21
 # Author: [Your Name/Nickname]
-# Description: Removed TradingView URL, full English translation, improved error logs.
+# Description: Added new indicator columns (MA Cross, Divergences, Vol. Breakout) with fictional data.
 # FILE_VERSION_END
 
 import streamlit as st
 import pandas as pd
 from datetime import datetime
-import traceback # For more detailed error logging
+import traceback
 
 # --- Initial Setup and Session State for Error Logs ---
 if 'error_logs' not in st.session_state:
@@ -19,63 +19,63 @@ if 'error_logs' not in st.session_state:
 # --- Helper Functions ---
 def get_fictional_data():
     """
-    Generates fictional data for the table.
-    All assets from the original list are included.
+    Generates fictional data for the table, including new indicator columns.
     """
     data = [
-        # Crypto (sorted by fictional Crypto Rank)
+        # Crypto
         {'Asset Type': 'Crypto', 'Crypto Rank': 1, 'Market Cap': 1.35e12, 'Asset Name': 'Bitcoin', 'Ticker': 'BTC', 'Current Price ($)': 68500.50, 'Var. 1H (%)': 0.8, 'Var. 12H (%)': 2.0, 'Var. 24H (%)': 1.5, 'Var. 1W (%)': 3.0,
-         'AI Signal': 'Buy', 'OBV Signal': 'Buy', 'ATR Signal': 'Buy',
+         'AI Signal': 'Buy', 'OBV Signal': 'Buy', 'ATR Signal': 'Buy', 'MA Cross': 'Wait', 'RSI Div.': 'None', 'MACD Div.': 'None', 'Vol. Breakout': 'No Break',
          'RSI (14)': 'Buy', 'StochRSI %K': 'Wait', 'MACD Signal': 'Buy', 'Stoch %K': 'Wait', 'Awesome Osc.': 'Buy', 'ADX (14)': 'Strong (40)', 'BBands Pos.': 'Mid',
          'EMA (20) vs Price': 'Buy', 'SMA (50/200)': 'Buy', 'VWAP vs Price': 'Buy'},
         {'Asset Type': 'Crypto', 'Crypto Rank': 2, 'Market Cap': 4.50e11, 'Asset Name': 'Ethereum', 'Ticker': 'ETH', 'Current Price ($)': 3750.00, 'Var. 1H (%)': -0.3, 'Var. 12H (%)': 1.0, 'Var. 24H (%)': 0.8, 'Var. 1W (%)': 2.5,
-         'AI Signal': 'Buy', 'OBV Signal': 'Wait', 'ATR Signal': 'Wait',
+         'AI Signal': 'Buy', 'OBV Signal': 'Wait', 'ATR Signal': 'Wait', 'MA Cross': 'Golden Cross (Buy)', 'RSI Div.': 'Bullish Div. (Buy)', 'MACD Div.': 'None', 'Vol. Breakout': 'No Break',
          'RSI (14)': 'Wait', 'StochRSI %K': 'Buy', 'MACD Signal': 'Buy', 'Stoch %K': 'Buy', 'Awesome Osc.': 'Buy', 'ADX (14)': 'Trend (30)', 'BBands Pos.': 'Upper',
          'EMA (20) vs Price': 'Buy', 'SMA (50/200)': 'Buy', 'VWAP vs Price': 'Buy'},
 
-        # Stocks & ETFs (sorted by fictional Market Cap descending)
+        # Stocks & ETFs
         {'Asset Type': 'Stock', 'Crypto Rank': None, 'Market Cap': 3.12e12, 'Asset Name': 'Microsoft Corp.', 'Ticker': 'MSFT', 'Current Price ($)': 420.55, 'Var. 1H (%)': 0.1, 'Var. 12H (%)': 0.5, 'Var. 24H (%)': 0.2, 'Var. 1W (%)': 1.5,
-         'AI Signal': '🔥 Strong Buy', 'OBV Signal': 'Buy', 'ATR Signal': 'Buy',
+         'AI Signal': '🔥 Strong Buy', 'OBV Signal': 'Buy', 'ATR Signal': 'Buy', 'MA Cross': 'Golden Cross (Buy)', 'RSI Div.': 'None', 'MACD Div.': 'None', 'Vol. Breakout': 'Bullish Break (Buy)',
          'RSI (14)': 'Wait', 'StochRSI %K': 'Buy', 'MACD Signal': 'Buy', 'Stoch %K': 'Wait', 'Awesome Osc.': 'Buy', 'ADX (14)': 'Trend (28)', 'BBands Pos.': 'Mid',
          'EMA (20) vs Price': 'Buy', 'SMA (50/200)': 'Buy', 'VWAP vs Price': 'Buy'},
         {'Asset Type': 'Stock', 'Crypto Rank': None, 'Market Cap': 2.63e12, 'Asset Name': 'Apple Inc.', 'Ticker': 'AAPL', 'Current Price ($)': 170.34, 'Var. 1H (%)': -0.2, 'Var. 12H (%)': -0.8, 'Var. 24H (%)': -0.5, 'Var. 1W (%)': -2.0,
-         'AI Signal': 'Sell', 'OBV Signal': 'Sell', 'ATR Signal': 'Sell',
+         'AI Signal': 'Sell', 'OBV Signal': 'Sell', 'ATR Signal': 'Sell', 'MA Cross': 'Wait', 'RSI Div.': 'Bearish Div. (Sell)', 'MACD Div.': 'Bearish Div. (Sell)', 'Vol. Breakout': 'No Break',
          'RSI (14)': 'Sell', 'StochRSI %K': 'Sell', 'MACD Signal': 'Sell', 'Stoch %K': 'Sell', 'Awesome Osc.': 'Sell', 'ADX (14)': 'Weak (18)', 'BBands Pos.': 'Upper',
          'EMA (20) vs Price': 'Sell', 'SMA (50/200)': 'Wait', 'VWAP vs Price': 'Sell'},
         {'Asset Type': 'Stock', 'Crypto Rank': None, 'Market Cap': 2.20e12, 'Asset Name': 'NVIDIA Corp.', 'Ticker': 'NVDA', 'Current Price ($)': 880.27, 'Var. 1H (%)': 0.5, 'Var. 12H (%)': 1.2, 'Var. 24H (%)': 2.1, 'Var. 1W (%)': 5.3,
-         'AI Signal': '🔥 Strong Buy', 'OBV Signal': 'Buy', 'ATR Signal': 'Buy',
+         'AI Signal': '🔥 Strong Buy', 'OBV Signal': 'Buy', 'ATR Signal': 'Buy', 'MA Cross': 'Golden Cross (Buy)', 'RSI Div.': 'None', 'MACD Div.': 'Bullish Div. (Buy)', 'Vol. Breakout': 'Bullish Break (Buy)',
          'RSI (14)': 'Buy', 'StochRSI %K': 'Buy', 'MACD Signal': 'Buy', 'Stoch %K': 'Buy', 'Awesome Osc.': 'Buy', 'ADX (14)': 'Strong (35)', 'BBands Pos.': 'Upper',
          'EMA (20) vs Price': 'Buy', 'SMA (50/200)': 'Buy', 'VWAP vs Price': 'Buy'},
         {'Asset Type': 'Stock', 'Crypto Rank': None, 'Market Cap': 1.82e12, 'Asset Name': 'Amazon.com Inc.', 'Ticker': 'AMZN', 'Current Price ($)': 175.80, 'Var. 1H (%)': 0.0, 'Var. 12H (%)': -0.5, 'Var. 24H (%)': -1.0, 'Var. 1W (%)': -1.2,
-         'AI Signal': 'Strong Sell', 'OBV Signal': 'Sell', 'ATR Signal': 'Sell',
+         'AI Signal': 'Strong Sell', 'OBV Signal': 'Sell', 'ATR Signal': 'Sell', 'MA Cross': 'Death Cross (Sell)', 'RSI Div.': 'None', 'MACD Div.': 'None', 'Vol. Breakout': 'Bearish Break (Sell)',
          'RSI (14)': 'Sell', 'StochRSI %K': 'Sell', 'MACD Signal': 'Sell', 'Stoch %K': 'Sell', 'Awesome Osc.': 'Sell', 'ADX (14)': 'Trend (26)', 'BBands Pos.': 'Lower',
-         'EMA (20) vs Price': 'Sell', 'SMA (50/200)': 'Wait', 'VWAP vs Price': 'Sell'},
+         'EMA (20) vs Price': 'Sell', 'SMA (50/200)': 'Sell', 'VWAP vs Price': 'Sell'}, # SMA 50/200 a Sell per Death Cross
+        # ... (continuing for other assets with fictional new indicator values)
         {'Asset Type': 'Stock', 'Crypto Rank': None, 'Market Cap': 1.75e12, 'Asset Name': 'Alphabet Inc. (GOOGL)', 'Ticker': 'GOOGL', 'Current Price ($)': 140.10, 'Var. 1H (%)': 0.0, 'Var. 12H (%)': 0.1, 'Var. 24H (%)': 0.7, 'Var. 1W (%)': 0.5,
-         'AI Signal': 'Neutral', 'OBV Signal': 'Wait', 'ATR Signal': 'Wait',
+         'AI Signal': 'Neutral', 'OBV Signal': 'Wait', 'ATR Signal': 'Wait', 'MA Cross': 'Wait', 'RSI Div.': 'None', 'MACD Div.': 'None', 'Vol. Breakout': 'No Break',
          'RSI (14)': 'Wait', 'StochRSI %K': 'Wait', 'MACD Signal': 'Wait', 'Stoch %K': 'Wait', 'Awesome Osc.': 'Wait', 'ADX (14)': 'No Trend (15)', 'BBands Pos.': 'Mid',
          'EMA (20) vs Price': 'Wait', 'SMA (50/200)': 'Buy', 'VWAP vs Price': 'Wait'},
         {'Asset Type': 'Stock', 'Crypto Rank': None, 'Market Cap': 1.22e12, 'Asset Name': 'Meta Platforms Inc.', 'Ticker': 'META', 'Current Price ($)': 480.12, 'Var. 1H (%)': -0.1, 'Var. 12H (%)': 0.0, 'Var. 24H (%)': -0.8, 'Var. 1W (%)': 0.2,
-         'AI Signal': 'Neutral', 'OBV Signal': 'Wait', 'ATR Signal': 'Wait',
+         'AI Signal': 'Neutral', 'OBV Signal': 'Wait', 'ATR Signal': 'Wait', 'MA Cross': 'Wait', 'RSI Div.': 'None', 'MACD Div.': 'None', 'Vol. Breakout': 'No Break',
          'RSI (14)': 'Wait', 'StochRSI %K': 'Sell', 'MACD Signal': 'Wait', 'Stoch %K': 'Sell', 'Awesome Osc.': 'Wait', 'ADX (14)': 'Weak (19)', 'BBands Pos.': 'Mid',
          'EMA (20) vs Price': 'Wait', 'SMA (50/200)': 'Wait', 'VWAP vs Price': 'Sell'},
         {'Asset Type': 'Stock', 'Crypto Rank': None, 'Market Cap': 5.60e11, 'Asset Name': 'Tesla, Inc.', 'Ticker': 'TSLA', 'Current Price ($)': 177.45, 'Var. 1H (%)': -0.7, 'Var. 12H (%)': -1.5, 'Var. 24H (%)': -3.0, 'Var. 1W (%)': -6.5,
-         'AI Signal': 'Strong Sell', 'OBV Signal': 'Sell', 'ATR Signal': 'Sell',
+         'AI Signal': 'Strong Sell', 'OBV Signal': 'Sell', 'ATR Signal': 'Sell', 'MA Cross': 'Death Cross (Sell)', 'RSI Div.': 'Bearish Div. (Sell)', 'MACD Div.': 'Bearish Div. (Sell)', 'Vol. Breakout': 'Bearish Break (Sell)',
          'RSI (14)': 'Sell', 'StochRSI %K': 'Sell', 'MACD Signal': 'Sell', 'Stoch %K': 'Sell', 'Awesome Osc.': 'Sell', 'ADX (14)': 'Strong (42)', 'BBands Pos.': 'Lower',
          'EMA (20) vs Price': 'Sell', 'SMA (50/200)': 'Sell', 'VWAP vs Price': 'Sell'},
         {'Asset Type': 'Stock', 'Crypto Rank': None, 'Market Cap': 2.20e8, 'Asset Name': 'Rigetti Computing (GTI)', 'Ticker': 'RGTI', 'Current Price ($)': 1.52, 'Var. 1H (%)': -0.5, 'Var. 12H (%)': -1.0, 'Var. 24H (%)': -1.2, 'Var. 1W (%)': -3.5,
-         'AI Signal': 'Sell', 'OBV Signal': 'Sell', 'ATR Signal': 'Wait',
+         'AI Signal': 'Sell', 'OBV Signal': 'Sell', 'ATR Signal': 'Wait', 'MA Cross': 'Death Cross (Sell)', 'RSI Div.': 'None', 'MACD Div.': 'None', 'Vol. Breakout': 'No Break',
          'RSI (14)': 'Buy', 'StochRSI %K': 'Buy', 'MACD Signal': 'Sell', 'Stoch %K': 'Buy', 'Awesome Osc.': 'Sell', 'ADX (14)': 'Weak (17)', 'BBands Pos.': 'Lower',
-         'EMA (20) vs Price': 'Sell', 'SMA (50/200)': 'Sell', 'VWAP vs Price': 'Sell'},
+         'EMA (20) vs Price': 'Sell', 'SMA (50/200)': 'Sell', 'VWAP vs Prezzo': 'Sell'},
         {'Asset Type': 'Stock', 'Crypto Rank': None, 'Market Cap': 2.10e9, 'Asset Name': 'IonQ Inc. (Quantum)', 'Ticker': 'IONQ', 'Current Price ($)': 10.30, 'Var. 1H (%)': 0.0, 'Var. 12H (%)': -0.2, 'Var. 24H (%)': 0.1, 'Var. 1W (%)': -1.0,
-         'AI Signal': 'Neutral', 'OBV Signal': 'Wait', 'ATR Signal': 'Wait',
+         'AI Signal': 'Neutral', 'OBV Signal': 'Wait', 'ATR Signal': 'Wait', 'MA Cross': 'Wait', 'RSI Div.': 'None', 'MACD Div.': 'None', 'Vol. Breakout': 'No Break',
          'RSI (14)': 'Wait', 'StochRSI %K': 'Wait', 'MACD Signal': 'Wait', 'Stoch %K': 'Wait', 'Awesome Osc.': 'Wait', 'ADX (14)': 'No Trend (12)', 'BBands Pos.': 'Mid',
          'EMA (20) vs Price': 'Wait', 'SMA (50/200)': 'Wait', 'VWAP vs Price': 'Wait'},
         {'Asset Type': 'ETF', 'Crypto Rank': None, 'Market Cap': 5.50e8, 'Asset Name': 'ProSh Volatil ST Fut (UVXY)', 'Ticker': 'UVXY', 'Current Price ($)': 8.50, 'Var. 1H (%)': 1.0, 'Var. 12H (%)': 2.5, 'Var. 24H (%)': 5.1, 'Var. 1W (%)': 10.0,
-         'AI Signal': 'Buy', 'OBV Signal': 'Buy', 'ATR Signal': 'Buy',
+         'AI Signal': 'Buy', 'OBV Signal': 'Buy', 'ATR Signal': 'Buy', 'MA Cross': 'Wait', 'RSI Div.': 'None', 'MACD Div.': 'None', 'Vol. Breakout': 'Bullish Break (Buy)',
          'RSI (14)': 'Sell', 'StochRSI %K': 'Sell', 'MACD Signal': 'Buy', 'Stoch %K': 'Sell', 'Awesome Osc.': 'Buy', 'ADX (14)': 'Trend (25)', 'BBands Pos.': 'Upper',
          'EMA (20) vs Price': 'Buy', 'SMA (50/200)': 'Wait', 'VWAP vs Price': 'Buy'},
         {'Asset Type': 'ETF', 'Crypto Rank': None, 'Market Cap': 2.21e10, 'Asset Name': 'ProSh UltraPro QQQ (TQQQ)', 'Ticker': 'TQQQ', 'Current Price ($)': 55.60, 'Var. 1H (%)': 0.4, 'Var. 12H (%)': 1.1, 'Var. 24H (%)': 1.5, 'Var. 1W (%)': 4.0,
-         'AI Signal': '🔥 Strong Buy', 'OBV Signal': 'Buy', 'ATR Signal': 'Buy',
+         'AI Signal': '🔥 Strong Buy', 'OBV Signal': 'Buy', 'ATR Signal': 'Buy', 'MA Cross': 'Golden Cross (Buy)', 'RSI Div.': 'None', 'MACD Div.': 'None', 'Vol. Breakout': 'No Break',
          'RSI (14)': 'Buy', 'StochRSI %K': 'Buy', 'MACD Signal': 'Buy', 'Stoch %K': 'Buy', 'Awesome Osc.': 'Buy', 'ADX (14)': 'Strong (38)', 'BBands Pos.': 'Upper',
          'EMA (20) vs Price': 'Buy', 'SMA (50/200)': 'Buy', 'VWAP vs Price': 'Buy'},
     ]
@@ -87,17 +87,12 @@ def get_fictional_data():
         axis=1
     )
     df.sort_values(by=['AssetTypeSortCol', 'PrimarySortKeyCol'], ascending=[True, True], inplace=True)
-    # Drop columns used only for sorting and not for display
     df.drop(columns=['Asset Type', 'Crypto Rank', 'Market Cap', 'AssetTypeSortCol', 'PrimarySortKeyCol'], inplace=True, errors='ignore')
     return df
 
 def apply_cell_styles(val, column_name_in_styled_df=""):
-    """Determines CSS color and font-weight attributes for a cell.
-    column_name_in_styled_df refers to column names AFTER renaming for display.
-    """
     color_css = ""
     font_weight_css = ""
-
     if isinstance(val, (int, float)) and "%" in column_name_in_styled_df:
         if val > 0: color_css = 'color: green'
         elif val < 0: color_css = 'color: red'
@@ -116,14 +111,18 @@ def apply_cell_styles(val, column_name_in_styled_df=""):
             if 'STRONG' in val_upper or 'TREND' in val_upper: color_css = 'color: green'
             elif 'WEAK' in val_upper or 'NO TREND' in val_upper: color_css = 'color: gray'
             else: color_css = 'color: gray'
-        elif current_col_name_upper == 'BB POS.':
+        elif current_col_name_upper == 'BB POS.': # Bollinger Bands Position
             if 'UPPER' in val_upper: color_css = 'color: red'
             elif 'LOWER' in val_upper: color_css = 'color: green'
             elif 'MID' in val_upper: color_css = 'color: gray'
-        elif current_col_name_upper in ['OBV', 'ATR', 'RSI (14)', 'SRSI %K', 'MACD', 'STOCH K', 'AO', 'EMA20/P', 'SMA50/200', 'VWAP/P']:
+        # New indicators and existing ones with Buy/Sell/Wait
+        elif current_col_name_upper in ['OBV', 'ATR', 'RSI (14)', 'SRSI %K', 'MACD', 'STOCH K', 'AO', 'EMA20/P', 'SMA50/200', 'VWAP/P', 'MA CROSS', 'RSI DIV.', 'MACD DIV.', 'VOL. BREAKOUT']:
             if 'BUY' in val_upper: color_css = 'color: green'; font_weight_css = 'font-weight: bold'
             elif 'SELL' in val_upper: color_css = 'color: red'; font_weight_css = 'font-weight: bold'
-            elif 'WAIT' in val_upper or 'NEUTRAL' in val_upper: color_css = 'color: gray'
+            elif 'WAIT' in val_upper or 'NEUTRAL' in val_upper or 'NONE' in val_upper or 'NO BREAK' in val_upper: color_css = 'color: gray'
+            # Specific for MA Cross if needed (already covered by Buy/Sell/Wait)
+            # elif 'GOLDEN CROSS' in val_upper: color_css = 'color: green'; font_weight_css = 'font-weight: bold'
+            # elif 'DEATH CROSS' in val_upper: color_css = 'color: red'; font_weight_css = 'font-weight: bold'
     
     final_style = []
     if color_css: final_style.append(color_css)
@@ -131,38 +130,33 @@ def apply_cell_styles(val, column_name_in_styled_df=""):
     return '; '.join(final_style) if final_style else None
 
 def log_error(message, asset_ticker=None, function_name=None, e=None):
-    """Appends a detailed error message to the session state error logs."""
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     log_entry = f"**Timestamp:** {timestamp}"
-    if function_name:
-        log_entry += f" | **Function:** `{function_name}`"
-    if asset_ticker:
-        log_entry += f" | **Asset:** `{asset_ticker}`"
+    if function_name: log_entry += f" | **Function:** `{function_name}`"
+    if asset_ticker: log_entry += f" | **Asset:** `{asset_ticker}`"
     log_entry += f" | **Error:** {message}"
     if e:
-        # log_entry += f"\n**Details:** {str(e)}" # Basic exception string
-        # For more detail, but can be very long:
         tb_str = traceback.format_exception(etype=type(e), value=e, tb=e.__traceback__)
-        log_entry += f"\n**Traceback Snippet:**\n```\n{''.join(tb_str[-2:])}\n```" # Last 2 lines of traceback
+        log_entry += f"\n**Traceback Snippet:**\n```\n{''.join(tb_str[-2:])}\n```"
     st.session_state.error_logs.append(log_entry)
 
-
 # --- User Interface ---
-st.set_page_config(layout="wide", page_title="Trading Indicators Dashboard") # English title
-st.title("🔥📊 Trading Indicators Dashboard") # English title
-st.caption(f"Version: 0.1.7 | Date: {datetime.now().strftime('%Y-%m-%d')}")
+st.set_page_config(layout="wide", page_title="Trading Indicators Dashboard")
+st.title("🔥📊 Trading Indicators Dashboard")
+st.caption(f"Version: 0.1.8 | Date: {datetime.now().strftime('%Y-%m-%d')}")
 
-df_data_processed = get_fictional_data() # This df has original column names
+df_data_processed = get_fictional_data()
 
 # Define the order of columns as they exist in df_data_processed
-# NO TradingView Link column for now
 cols_to_display_order = [
     'Asset Name', 'Ticker', 'Current Price ($)',
     'Var. 1H (%)', 'Var. 12H (%)', 'Var. 24H (%)', 'Var. 1W (%)',
-    'AI Signal', 'OBV Signal', 'ATR Signal',
-    'RSI (14)', 'StochRSI %K', 'MACD Signal', 'Stoch %K', 'Awesome Osc.',
-    'ADX (14)', 'BBands Pos.',
-    'EMA (20) vs Price', 'SMA (50/200)', 'VWAP vs Price'
+    'AI Signal', 
+    'MA Cross', 'RSI Div.', 'MACD Div.', 'Vol. Breakout', # New Advanced Signals
+    'OBV Signal', 'ATR Signal', # Existing Volume/Volatility based
+    'RSI (14)', 'StochRSI %K', 'MACD Signal', 'Stoch %K', 'Awesome Osc.', # Oscillators
+    'ADX (14)', 'BBands Pos.', # Trend Strength / Volatility
+    'EMA (20) vs Price', 'SMA (50/200)', 'VWAP vs Price' # Moving Averages
 ]
 df_for_styling = df_data_processed[cols_to_display_order].copy()
 
@@ -171,47 +165,42 @@ rename_map_for_display_headers = {
     'Current Price ($)': 'Price ($)',
     'Awesome Osc.': 'AO', 'StochRSI %K': 'SRSI %K', 'MACD Signal': 'MACD', 'Stoch %K': 'Stoch K',
     'ADX (14)': 'ADX', 'BBands Pos.': 'BB Pos.', 'OBV Signal': 'OBV', 'ATR Signal': 'ATR',
-    'EMA (20) vs Price': 'EMA20/P', 'SMA (50/200)': 'SMA50/200', 'VWAP vs Price': 'VWAP/P'
+    'EMA (20) vs Price': 'EMA20/P', 'SMA (50/200)': 'SMA50/200', 'VWAP vs Price': 'VWAP/P', # Kept old SMA50/200 as it's more specific than MA Cross
+    'MA Cross': 'MA Cross', 'RSI Div.': 'RSI Div', 'MACD Div.': 'MACD Div', 'Vol. Breakout': 'Vol Break' # Shorter for new ones
 }
 df_for_styling.rename(columns=rename_map_for_display_headers, inplace=True)
 
-# Define text formatters (for %, $)
-# Apply to column names as they are in df_for_styling (after renaming)
 formatters = {}
 for col_header in df_for_styling.columns:
     if "%" in col_header:
          formatters[col_header] = lambda x: f"{x:+.1f}%" if isinstance(x, (int, float)) else x
-    elif col_header == 'Price ($)': # Renamed column
+    elif col_header == 'Price ($)':
         formatters[col_header] = "${:,.2f}"
 
-# Apply Styler
 styled_df = df_for_styling.style
-
-# Apply cell-specific color/font-weight styles
 for col_name_in_styled_df in df_for_styling.columns:
     styled_df = styled_df.apply(
         lambda series: series.map(lambda val: apply_cell_styles(val, column_name_in_styled_df=series.name)),
         subset=[col_name_in_styled_df]
     )
-
-styled_df = styled_df.format(formatters) # Apply text formatting
-
-# Apply general table properties
+styled_df = styled_df.format(formatters)
 styled_df = styled_df.set_properties(**{'text-align': 'center'}, subset=df_for_styling.columns.drop(['Asset Name', 'Price ($)']))
 styled_df = styled_df.set_properties(**{'text-align': 'right'}, subset=['Price ($)'])
 styled_df = styled_df.set_properties(**{'text-align': 'left'}, subset=['Asset Name'])
+# Adjusted font size to try and fit more columns
+font_size = "0.70em" 
 styled_df = styled_df.set_table_styles([
-    {'selector': 'th', 'props': [('text-align', 'center'), ('background-color', '#f0f2f6'), ('padding', '0.2rem'), ('font-size', '0.75em')]},
-    {'selector': 'td', 'props': [('padding', '0.2rem 0.3rem'), ('font-size', '0.75em')]},
+    {'selector': 'th', 'props': [('text-align', 'center'), ('background-color', '#f0f2f6'), ('padding', '0.15rem'), ('font-size', font_size)]},
+    {'selector': 'td', 'props': [('padding', '0.15rem 0.2rem'), ('font-size', font_size)]},
 ])
 
-st.markdown("#### Aggregated and Individual Technical Signals") # English
-st.dataframe(styled_df, use_container_width=True, hide_index=True) # Removed unsafe_allow_html
-
+st.markdown("#### Aggregated and Individual Technical Signals")
+st.dataframe(styled_df, use_container_width=True, hide_index=True)
 
 # --- Legend ---
-st.subheader("📜 Detailed Indicators and Columns Legend") # English
+st.subheader("📜 Detailed Indicators and Columns Legend")
 st.markdown("---")
+# (General Info, Price Variations, AI Signal sections as before)
 st.markdown("##### General Information")
 st.markdown("""
 - **Asset Name**: Full name of the stock, cryptocurrency, or ETF.
@@ -234,16 +223,31 @@ st.markdown("""
     - *Utility*: Provides a quick, high-level assessment of trading potential. Strong consensus among indicators leads to "Strong" signals. *Note: This is a decision aid, not a guarantee of results.*
 """, unsafe_allow_html=True)
 
+
+st.markdown("##### Advanced Confirmation Signals")
+st.markdown("""
+- **MA Cross** (Moving Average Crossover):
+    - *Description*: Typically refers to the SMA 50-day crossing the SMA 200-day.
+    - *Signals*: <span style='color:green; font-weight:bold;'>Golden Cross (Buy)</span> (SMA50 above SMA200), <span style='color:red; font-weight:bold;'>Death Cross (Sell)</span> (SMA50 below SMA200), or <span style='color:gray;'>Wait</span>.
+    - *Utility*: Indicates major long-term trend shifts.
+- **RSI Div** (RSI Divergence):
+    - *Description*: Occurs when price and RSI move in opposite directions (e.g., price makes lower low, RSI makes higher low).
+    - *Signals*: <span style='color:green; font-weight:bold;'>Bullish Div. (Buy)</span>, <span style='color:red; font-weight:bold;'>Bearish Div. (Sell)</span>, or <span style='color:gray;'>None</span>.
+    - *Utility*: Potential early warning of a trend reversal or weakening momentum.
+- **MACD Div** (MACD Divergence):
+    - *Description*: Similar to RSI Divergence, but uses the MACD indicator against price.
+    - *Signals*: <span style='color:green; font-weight:bold;'>Bullish Div. (Buy)</span>, <span style='color:red; font-weight:bold;'>Bearish Div. (Sell)</span>, or <span style='color:gray;'>None</span>.
+    - *Utility*: Another form of divergence detection that can signal trend exhaustion.
+- **Vol Break** (Volume Confirmed Breakout):
+    - *Description*: Price breaks a key support/resistance level with a significant increase in volume.
+    - *Signals*: <span style='color:green; font-weight:bold;'>Bullish Break (Buy)</span>, <span style='color:red; font-weight:bold;'>Bearish Break (Sell)</span>, or <span style='color:gray;'>No Break</span>.
+    - *Utility*: Strong signal for new trend initiation or continuation; volume confirms conviction.
+""", unsafe_allow_html=True)
+
 st.markdown("##### Volume, Momentum & Overbought/Oversold Oscillators")
 st.markdown("""
-- **OBV** (On-Balance Volume Signal):
-    - *Description*: Momentum indicator using volume flow to predict price changes.
-    - *Base Signals*: <span style='color:green; font-weight:bold;'>BUY</span> for accumulation. <span style='color:red; font-weight:bold;'>SELL</span> for distribution. <span style='color:gray;'>WAIT</span> otherwise.
-    - *Utility*: Confirms price trends or signals divergences.
-- **ATR** (Average True Range Signal):
-    - *Description*: Measures market volatility.
-    - *Base Signals (Proposed)*: <span style='color:green; font-weight:bold;'>BUY/SELL</span> if ATR suggests high volatility breakout/breakdown potential aligned with other signals. <span style='color:gray;'>WAIT</span> if ATR is low (low volatility).
-    - *Utility*: Helps assess risk and potential move magnitude. A derived ATR signal is an interpretation.
+- **OBV** (On-Balance Volume Signal): Signals: <span style='color:green; font-weight:bold;'>BUY</span> (accumulation), <span style='color:red; font-weight:bold;'>SELL</span> (distribution), <span style='color:gray;'>WAIT</span>.
+- **ATR** (Average True Range Signal): Signals (Proposed): <span style='color:green; font-weight:bold;'>BUY/SELL</span> (high volatility breakout), <span style='color:gray;'>WAIT</span> (low volatility).
 - **RSI (14)** (Relative Strength Index): Signals: <30 <span style='color:green; font-weight:bold;'>BUY</span>, >70 <span style='color:red; font-weight:bold;'>SELL</span>, 30-70 (<span style='color:gray;'>WAIT</span>).
 - **SRSI %K** (Stochastic RSI %K): Signals: <20 <span style='color:green; font-weight:bold;'>BUY</span>, >80 <span style='color:red; font-weight:bold;'>SELL</span>, 20-80 (<span style='color:gray;'>WAIT</span>).
 - **MACD** (MACD Crossover): Signals: <span style='color:green; font-weight:bold;'>BUY</span> MACD > Signal, <span style='color:red; font-weight:bold;'>SELL</span> MACD < Signal, <span style='color:gray;'>WAIT</span>.
@@ -253,51 +257,43 @@ st.markdown("""
 
 st.markdown("##### Trend Strength & Volatility Indicators (Continued)")
 st.markdown("""
-- **ADX** (Average Directional Index):
-    - *Interpretation*: >20 (<span style='color:green;'>Strong/Developing Trend</span>), <20 (<span style='color:gray;'>Weak/No Trend</span>). Does not indicate direction.
-- **BB Pos.** (Bollinger Bands Position):
-    - *Interpretation*: <span style='color:green;'>Lower</span> (near lower band), <span style='color:gray;'>Mid</span> (between bands), <span style='color:red;'>Upper</span> (near upper band).
+- **ADX** (Average Directional Index): Interpretation: >20 (<span style='color:green;'>Strong/Developing Trend</span>), <20 (<span style='color:gray;'>Weak/No Trend</span>).
+- **BB Pos.** (Bollinger Bands Position): Interpretation: <span style='color:green;'>Lower</span>, <span style='color:gray;'>Mid</span>, <span style='color:red;'>Upper</span>.
 """, unsafe_allow_html=True)
 
-st.markdown("##### M o v i n g   A v e r a g e s") # English
+st.markdown("##### M o v i n g   A v e r a g e s")
 st.markdown("""
 - **EMA20/P** (Price vs 20-period EMA): <span style='color:green; font-weight:bold;'>BUY</span> P > EMA, <span style='color:red; font-weight:bold;'>SELL</span> P < EMA, <span style='color:gray;'>WAIT</span>.
-- **SMA50/200** (SMA Crossover 50/200): <span style='color:green; font-weight:bold;'>BUY</span> Golden Cross, <span style='color:red; font-weight:bold;'>SELL</span> Death Cross, <span style='color:gray;'>WAIT</span>.
+- **SMA50/200** (SMA Crossover 50/200): *Note: This is largely covered by 'MA Cross'. This column shows the current state of Price vs SMA50 & SMA200 if used as S/R.* <span style='color:green; font-weight:bold;'>BUY</span> (e.g. Price > SMA50/200 in uptrend), <span style='color:red; font-weight:bold;'>SELL</span> (e.g. Price < SMA50/200 in downtrend), <span style='color:gray;'>WAIT</span>.
 - **VWAP/P** (Price vs VWAP): <span style='color:green; font-weight:bold;'>BUY</span> P > VWAP, <span style='color:red; font-weight:bold;'>SELL</span> P < VWAP, <span style='color:gray;'>WAIT</span>.
 """, unsafe_allow_html=True)
 
 
 # --- Error Logs Section ---
-st.subheader("⚠️ Error Logs") # English
+st.subheader("⚠️ Error Logs")
 st.markdown("---")
 error_count = len(st.session_state.error_logs)
 expander_title = f"Show/Hide Error Logs ({error_count} {'error' if error_count == 1 else 'errors'})"
-
-with st.expander(expander_title, expanded=error_count > 0): # Expand if errors exist
+with st.expander(expander_title, expanded=error_count > 0):
     if error_count > 0:
-        for i, log_entry in enumerate(reversed(st.session_state.error_logs)): # Show newest first
-            st.markdown(f"**Log #{error_count - i}:**\n{log_entry}", unsafe_allow_html=True) # Use markdown for better formatting
-            if i < error_count - 1: st.markdown("---") # Separator between logs
+        for i, log_entry in enumerate(reversed(st.session_state.error_logs)):
+            st.markdown(f"**Log #{error_count - i}:**\n{log_entry}", unsafe_allow_html=True)
+            if i < error_count - 1: st.markdown("---")
     else:
         st.info("No errors recorded so far.")
-
-    # Simulate error for testing
-    if st.button("Simulate Error"):
-        try:
-            1 / 0 # Example error
-        except Exception as e_sim:
-            log_error("This is a simulated test error.", asset_ticker="SIM_TEST", function_name="simulate_error_button", e=e_sim)
+    if st.button("Simulate Error "): # Added space to differentiate from other button if it was too close
+        try: 1 / 0
+        except Exception as e_sim: log_error("This is a simulated test error.", asset_ticker="SIM_TEST", function_name="simulate_error_button", e=e_sim)
         st.rerun()
-
-    if error_count > 0 and st.button("Clear Error Logs"):
+    if error_count > 0 and st.button("Clear Error Logs "): # Added space
         st.session_state.error_logs = []
         st.rerun()
 
 st.markdown("---")
-st.caption(f"File: app.py | Version: 0.1.7 | Last Modified: {datetime.now().strftime('%Y-%m-%d')}")
+st.caption(f"File: app.py | Version: 0.1.8 | Last Modified: {datetime.now().strftime('%Y-%m-%d')}")
 
 # FILE_FOOTER_START
 # End of file: app.py
-# Version: 0.1.7
-# Last Modified: 2024-03-20
+# Version: 0.1.8
+# Last Modified: 2024-03-21
 # FILE_FOOTER_END
