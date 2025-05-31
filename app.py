@@ -1,10 +1,10 @@
 # FILE_VERSION_START
 # Project: CryptoAndStocksIndicators
 # File: app.py
-# Version: 0.1.5
+# Version: 0.1.6
 # Date: 2024-03-20
 # Author: [Il Tuo Nome/Nickname]
-# Description: Priorità st.dataframe per stabilità. Link TV testuale+icona. Colori corretti.
+# Description: Rimozione unsafe_allow_html per stabilità, link TV come testo. Focus colori.
 # FILE_VERSION_END
 
 import streamlit as st
@@ -27,7 +27,7 @@ def get_fictional_data():
          'AI Signal': 'Buy', 'OBV Signal': 'Wait', 'ATR Signal': 'Wait',
          'RSI (14)': 'Wait', 'StochRSI %K': 'Buy', 'MACD Signal': 'Buy', 'Stoch %K': 'Buy', 'Awesome Osc.': 'Buy', 'ADX (14)': 'Trend (30)', 'BBands Pos.': 'Upper',
          'EMA (20) vs Prezzo': 'Buy', 'SMA (50/200)': 'Buy', 'VWAP vs Prezzo': 'Buy'},
-        # Stocks & ETFs (Lista completa come da tua richiesta)
+        # Stocks & ETFs
         {'Asset Type': 'Stock', 'Crypto Rank': None, 'Market Cap': 3.12e12, 'Nome Asset': 'Microsoft Corp.', 'Ticker': 'MSFT', 'TradingViewSymbol': 'NASDAQ:MSFT', 'Prezzo Attuale ($)': 420.55, 'Var. 1H (%)': 0.1, 'Var. 12H (%)': 0.5, 'Var. 24H (%)': 0.2, 'Var. 1W (%)': 1.5,
          'AI Signal': '🔥 Strong Buy', 'OBV Signal': 'Buy', 'ATR Signal': 'Buy',
          'RSI (14)': 'Wait', 'StochRSI %K': 'Buy', 'MACD Signal': 'Buy', 'Stoch %K': 'Wait', 'Awesome Osc.': 'Buy', 'ADX (14)': 'Trend (28)', 'BBands Pos.': 'Mid',
@@ -84,15 +84,16 @@ def get_fictional_data():
     df.drop(columns=['Asset Type', 'Crypto Rank', 'Market Cap', 'AssetTypeSort', 'PrimarySortKey'], inplace=True, errors='ignore')
     return df
 
-def apply_cell_styles(val, column_name_in_df_for_styling=""):
+def apply_cell_styles(val, column_name_in_styled_df=""):
     """Determina gli attributi CSS color e font-weight per una cella.
-    column_name_in_df_for_styling si riferisce ai nomi delle colonne DOPO la ridenominazione per la visualizzazione.
+    column_name_in_styled_df si riferisce ai nomi delle colonne DOPO la ridenominazione per la visualizzazione.
     """
     color_css = ""
     font_weight_css = ""
 
     # Gestione Variazioni Percentuali (valore numerico)
-    if isinstance(val, (int, float)) and "%" in column_name_in_df_for_styling:
+    # column_name_in_styled_df sarà tipo 'Var. 1H (%)'
+    if isinstance(val, (int, float)) and "%" in column_name_in_styled_df:
         if val > 0: color_css = 'color: green'
         elif val < 0: color_css = 'color: red'
         else: color_css = 'color: gray'
@@ -100,8 +101,7 @@ def apply_cell_styles(val, column_name_in_df_for_styling=""):
     # Gestione Segnali Testuali
     elif isinstance(val, str):
         val_upper = val.upper()
-        
-        current_col_name_upper = column_name_in_df_for_styling.upper()
+        current_col_name_upper = column_name_in_styled_df.upper()
 
         if current_col_name_upper == 'AI SIGNAL':
             if 'STRONG BUY' in val_upper: color_css = 'color: darkgreen'; font_weight_css = 'font-weight: bold'
@@ -113,7 +113,7 @@ def apply_cell_styles(val, column_name_in_df_for_styling=""):
         elif current_col_name_upper == 'ADX':
             if 'STRONG' in val_upper or 'TREND' in val_upper: color_css = 'color: green'
             elif 'WEAK' in val_upper or 'NO TREND' in val_upper: color_css = 'color: gray'
-            else: color_css = 'color: gray'
+            else: color_css = 'color: gray' # Default per ADX se il formato è imprevisto
         
         elif current_col_name_upper == 'BB POS.':
             if 'UPPER' in val_upper: color_css = 'color: red'
@@ -121,8 +121,7 @@ def apply_cell_styles(val, column_name_in_df_for_styling=""):
             elif 'MID' in val_upper: color_css = 'color: gray'
         
         # Per tutti gli altri indicatori testuali (OBV, ATR, RSI, etc.)
-        # che ora hanno nomi brevi come 'OBV', 'ATR', 'RSI (14)' (RSI non è abbreviato)
-        # Assicurati che column_name_in_df_for_styling corrisponda a questi.
+        # Questi nomi sono quelli rinominati: 'OBV', 'ATR', 'RSI (14)', ecc.
         elif current_col_name_upper in ['OBV', 'ATR', 'RSI (14)', 'SRSI %K', 'MACD', 'STOCH K', 'AO', 'EMA20/P', 'SMA50/200', 'VWAP/P']:
             if 'BUY' in val_upper: color_css = 'color: green'; font_weight_css = 'font-weight: bold'
             elif 'SELL' in val_upper: color_css = 'color: red'; font_weight_css = 'font-weight: bold'
@@ -138,20 +137,19 @@ def apply_cell_styles(val, column_name_in_df_for_styling=""):
 # --- Interfaccia Utente Streamlit ---
 st.set_page_config(layout="wide", page_title="Indicatori Trading Dashboard")
 st.title("🔥📊 Dashboard Indicatori Crypto & Stocks")
-st.caption(f"Versione: 0.1.5 | Data: {datetime.now().strftime('%Y-%m-%d')}")
+st.caption(f"Versione: 0.1.6 | Data: {datetime.now().strftime('%Y-%m-%d')}")
 
 df_data_processed = get_fictional_data()
 
-# Crea colonna Link TradingView come testo Markdown con icona
-df_data_processed['TV Link'] = df_data_processed['TradingViewSymbol'].apply(
-    lambda x: f"[📈](https://www.tradingview.com/chart/?symbol={x})"
+# Crea colonna Link TradingView come testo semplice URL (per ora)
+df_data_processed['TV URL'] = df_data_processed['TradingViewSymbol'].apply(
+    lambda x: f"https://www.tradingview.com/chart/?symbol={x}"
 )
 df_data_processed.drop(columns=['TradingViewSymbol'], inplace=True, errors='ignore')
 
 
-# Definisci l'ordine delle colonne come sono in df_data_processed
 cols_to_display_order = [
-    'Nome Asset', 'Ticker', 'TV Link', 'Prezzo Attuale ($)',
+    'Nome Asset', 'Ticker', 'TV URL', 'Prezzo Attuale ($)', # 'TV URL' invece di link markdown
     'Var. 1H (%)', 'Var. 12H (%)', 'Var. 24H (%)', 'Var. 1W (%)',
     'AI Signal', 'OBV Signal', 'ATR Signal',
     'RSI (14)', 'StochRSI %K', 'MACD Signal', 'Stoch %K', 'Awesome Osc.',
@@ -160,18 +158,14 @@ cols_to_display_order = [
 ]
 df_for_styling = df_data_processed[cols_to_display_order].copy()
 
-# Rinomina colonne PER LA VISUALIZZAZIONE (header tabella)
 rename_map_for_display_headers = {
-    'Prezzo Attuale ($)': 'Prezzo ($)', 'TV Link': '📈 TV', # Header per il link
+    'Prezzo Attuale ($)': 'Prezzo ($)', 'TV URL': 'TradingView', # Header per l'URL
     'Awesome Osc.': 'AO', 'StochRSI %K': 'SRSI %K', 'MACD Signal': 'MACD', 'Stoch %K': 'Stoch K',
     'ADX (14)': 'ADX', 'BBands Pos.': 'BB Pos.', 'OBV Signal': 'OBV', 'ATR Signal': 'ATR',
     'EMA (20) vs Prezzo': 'EMA20/P', 'SMA (50/200)': 'SMA50/200', 'VWAP vs Prezzo': 'VWAP/P'
 }
 df_for_styling.rename(columns=rename_map_for_display_headers, inplace=True)
 
-
-# Definisci i formattatori testuali (per %, $)
-# Applica ai nomi delle colonne *dopo* la ridenominazione (quelli in df_for_styling.columns)
 formatters = {}
 for col_header in df_for_styling.columns:
     if "%" in col_header:
@@ -179,45 +173,42 @@ for col_header in df_for_styling.columns:
     elif col_header == 'Prezzo ($)':
         formatters[col_header] = "${:,.2f}"
 
-# Applica lo Styler
 styled_df = df_for_styling.style
 
-# Applica stili di colore/peso cella per cella
-# La funzione apply_cell_styles ora usa i nomi delle colonne di df_for_styling (quelli rinominati)
 for col_name_in_styled_df in df_for_styling.columns:
-    # Non applicare lo styling basato su valore alla colonna dei link TV se contiene HTML/Markdown
-    if col_name_in_styled_df != '📈 TV': # Il nome dell'header rinominato per il link
+    # Non applicare lo styling basato su valore alla colonna degli URL TV
+    if col_name_in_styled_df != 'TradingView': # Il nome dell'header rinominato per l'URL
         styled_df = styled_df.apply(
-            lambda series: series.map(lambda val: apply_cell_styles(val, column_name_in_df_for_styling=series.name)),
+            lambda series: series.map(lambda val: apply_cell_styles(val, column_name_in_styled_df=series.name)),
             subset=[col_name_in_styled_df]
         )
 
 styled_df = styled_df.format(formatters)
-
-styled_df = styled_df.set_properties(**{'text-align': 'center'}, subset=df_for_styling.columns.drop(['Nome Asset', 'Prezzo ($)']))
+styled_df = styled_df.set_properties(**{'text-align': 'center'}, subset=df_for_styling.columns.drop(['Nome Asset', 'Prezzo ($)', 'TradingView']))
 styled_df = styled_df.set_properties(**{'text-align': 'right'}, subset=['Prezzo ($)'])
-styled_df = styled_df.set_properties(**{'text-align': 'left'}, subset=['Nome Asset'])
+styled_df = styled_df.set_properties(**{'text-align': 'left'}, subset=['Nome Asset', 'TradingView']) # Link a sinistra
 styled_df = styled_df.set_table_styles([
     {'selector': 'th', 'props': [('text-align', 'center'), ('background-color', '#f0f2f6'), ('padding', '0.2rem'), ('font-size', '0.75em')]},
     {'selector': 'td', 'props': [('padding', '0.2rem 0.3rem'), ('font-size', '0.75em')]},
 ])
 
 st.markdown("#### Segnali Tecnici Aggregati e Individuali")
-# Usare unsafe_allow_html=True per permettere il rendering del link Markdown nella colonna '📈 TV'
-st.dataframe(styled_df, use_container_width=True, hide_index=True, unsafe_allow_html=True)
+# Rimosso unsafe_allow_html=True perché non stiamo più cercando di renderizzare HTML custom per il link
+st.dataframe(styled_df, use_container_width=True, hide_index=True)
 
 
 # --- Legenda Indicatori ---
-# (Come versione 0.1.3)
+# (Come versione 0.1.5, ma aggiorna la descrizione del link TV)
 st.subheader("📜 Legenda Dettagliata Indicatori e Colonne")
 st.markdown("---")
 st.markdown("##### Informazioni Generali & Link")
 st.markdown("""
 - **Nome Asset**: Nome completo dell'azione o criptovaluta/ETF.
 - **Ticker**: Simbolo univoco dell'asset sul mercato.
-- **📈 TV**: Link all'analisi grafica dell'asset su TradingView (l'icona e il testo 'TV' sono cliccabili).
+- **TradingView**: URL completo per l'analisi grafica dell'asset su TradingView (da copiare/incollare).
 - **Prezzo ($)**: Ultimo prezzo registrato per l'asset, espresso in USD.
 """)
+# ... (Il resto della legenda come prima)
 st.markdown("##### Variazioni di Prezzo (Momentum a Breve Termine)")
 st.markdown("""
 - **Var. 1H (%)**: Variazione percentuale del prezzo nelle ultime 1 ora.
@@ -288,11 +279,10 @@ with st.expander("Mostra/Nascondi Error Logs", expanded=False):
         st.rerun()
 
 st.markdown("---")
-st.caption(f"File: app.py | Versione: 0.1.5 | Ultima Modifica: {datetime.now().strftime('%Y-%m-%d')}") # Aggiornato a 0.1.5
-
+st.caption(f"File: app.py | Versione: 0.1.6 | Ultima Modifica: {datetime.now().strftime('%Y-%m-%d')}")
 
 # FILE_FOOTER_START
 # End of file: app.py
-# Version: 0.1.5
+# Version: 0.1.6
 # Last Modified: 2024-03-20
 # FILE_FOOTER_END
