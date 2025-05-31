@@ -1,5 +1,6 @@
 streamlit
-pandas
+pandas==2.0.3 
+numpy==1.24.4 # NumPy <1.25 è più sicuro per evitare la rimozione completa di alcuni alias
 yfinance
 pandas-ta
 setuptools
