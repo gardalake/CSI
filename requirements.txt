@@ -1,6 +1,6 @@
 streamlit
-pandas==2.0.3
-numpy>=1.26.0  # O >=1.25.0 se 1.26.0 dovesse avere problemi imprevisti
+pandas>=2.0.0 # Lascia che pip scelga una versione recente di pandas
+numpy>=1.26.0 # NumPy moderno
 yfinance
 pandas-ta
 setuptools
