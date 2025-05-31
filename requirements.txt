@@ -3,4 +3,4 @@ pandas>=2.0.0
 numpy>=1.26.0
 setuptools
 yfinance
-pandas-ta
+pandas-ta>=0.3.14b0  # Specifica una versione recente di pandas-ta
