@@ -1,10 +1,10 @@
 # FILE_VERSION_START
 # Project: CryptoAndStocksIndicators
 # File: app.py
-# Version: 0.2.1
+# Version: 0.2.2
 # Date: 2024-03-21
 # Author: [Your Name/Nickname]
-# Description: All code consolidated into app.py. Minimal requirements for debugging. Real RSI for AAPL.
+# Description: Fixed TypeError in log_error_app when 'e' is None.
 # FILE_VERSION_END
 
 import streamlit as st
@@ -18,66 +18,70 @@ import traceback
 if 'error_logs' not in st.session_state:
     st.session_state.error_logs = []
 
-# --- Constants and Configuration (from former config.py) ---
-# (Base fictional data is now part of get_base_fictional_data function)
+# --- Constants and Configuration ---
 RSI_PERIOD = 14
 RSI_OVERSOLD = 30
 RSI_OVERBOUGHT = 70
 
 # --- Logging Helper Function ---
-def log_error_app(message, asset_ticker=None, function_name=None, e=None):
+def log_error_app(message, asset_ticker=None, function_name=None, e=None): # 'e' can be None
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     log_entry = f"**Timestamp:** {timestamp}"
     if function_name: log_entry += f" | **Function:** `{function_name}`"
     if asset_ticker: log_entry += f" | **Asset:** `{asset_ticker}`"
     log_entry += f" | **Error:** {message}"
-    if e:
-        tb_str = traceback.format_exception(etype=type(e), value=e, tb=e.__traceback__)
-        log_entry += f"\n**Traceback Snippet:**\n```\n{''.join(tb_str[-2:])}\n```"
+    
+    # Only try to format traceback if 'e' is a valid exception object
+    if e is not None and isinstance(e, Exception): # Check if e is an actual exception
+        try:
+            tb_str = traceback.format_exception(etype=type(e), value=e, tb=e.__traceback__)
+            log_entry += f"\n**Traceback Snippet:**\n```\n{''.join(tb_str[-2:])}\n```"
+        except Exception as tb_ex: # Catch potential errors during traceback formatting
+            log_entry += f"\n**Traceback Formatting Error:** {str(tb_ex)}"
+    elif e is not None: # If e is passed but not an exception (should not happen ideally)
+        log_entry += f"\n**Details (Non-Exception):** {str(e)}"
+        
     st.session_state.error_logs.append(log_entry)
 
-# --- Data Fetching and Processing Functions (from former data_processing.py) ---
+# --- Data Fetching and Processing Functions ---
 def calculate_real_rsi_for_aapl(rsi_period=RSI_PERIOD, rsi_oversold=RSI_OVERSOLD, rsi_overbought=RSI_OVERBOUGHT):
-    """
-    Fetches historical data for AAPL using yfinance,
-    calculates the RSI, and returns the RSI signal ('Buy', 'Sell', 'Wait').
-    Temporarily disabled if yfinance/pandas-ta are commented out in requirements.
-    """
-    # Check if yfinance and pandas_ta are available (based on whether they were imported)
     if 'yf' not in globals() or 'ta' not in globals():
-        log_error_app("yfinance or pandas-ta not available. Skipping real RSI calculation for AAPL.", "AAPL", "calculate_real_rsi_for_aapl")
+        # Pass e=None explicitly or don't pass it if the function signature defaults e to None
+        log_error_app("yfinance or pandas-ta not available. Skipping real RSI calculation for AAPL.", 
+                      asset_ticker="AAPL", 
+                      function_name="calculate_real_rsi_for_aapl", 
+                      e=None) # Explicitly pass None for e
         return "N/A (Lib Missing)"
 
     try:
         ticker = "AAPL"
         end_date = datetime.now()
         start_date = end_date - timedelta(days=180)
-        # global yf, ta # Make sure we are using the imported modules
         stock_data = yf.download(ticker.upper(), start=start_date, end=end_date, progress=False, timeout=10)
 
         if stock_data.empty:
-            log_error_app(f"No data returned for {ticker}.", ticker, "calculate_real_rsi_for_aapl")
+            log_error_app(f"No data returned for {ticker}.", ticker, "calculate_real_rsi_for_aapl", e=None)
             return "N/A (No Data)"
 
         stock_data.ta.rsi(length=rsi_period, append=True)
         
         rsi_col_name = f'RSI_{rsi_period}'
         if rsi_col_name not in stock_data.columns or stock_data[rsi_col_name].empty or stock_data[rsi_col_name].isna().all():
-            log_error_app(f"RSI column '{rsi_col_name}' not found, empty, or all NaN for {ticker}.", ticker, "calculate_real_rsi_for_aapl")
+            log_error_app(f"RSI column '{rsi_col_name}' not found, empty, or all NaN for {ticker}.", ticker, "calculate_real_rsi_for_aapl", e=None)
             return "N/A (Calc Issue)"
 
         last_rsi = stock_data[rsi_col_name].dropna().iloc[-1]
         
         if pd.isna(last_rsi):
-            log_error_app(f"Last RSI value is NaN for {ticker} after dropna.", ticker, "calculate_real_rsi_for_aapl")
+            log_error_app(f"Last RSI value is NaN for {ticker} after dropna.", ticker, "calculate_real_rsi_for_aapl", e=None)
             return "N/A (NaN RSI)"
 
         if last_rsi < rsi_oversold: return "Buy"
         elif last_rsi > rsi_overbought: return "Sell"
         else: return "Wait"
             
-    except Exception as e:
-        log_error_app(f"Failed to calculate RSI for {ticker}.", ticker, "calculate_real_rsi_for_aapl", e)
+    except Exception as e_calc: # Renamed to e_calc to avoid conflict if e was passed
+        log_error_app(f"Failed to calculate RSI for {ticker}.", ticker, "calculate_real_rsi_for_aapl", e=e_calc)
         return "Error (Calc)"
 
 def get_base_fictional_data():
@@ -142,17 +146,14 @@ def get_base_fictional_data():
 def get_processed_data_with_real_aapl_rsi():
     """Generates data for the table. For AAPL, RSI is calculated from real data if libs are available."""
     base_df = pd.DataFrame(get_base_fictional_data())
-
-    # Calculate real RSI for AAPL and update its row
     if 'AAPL' in base_df['Ticker'].values:
-        aapl_rsi_signal = calculate_real_rsi_for_aapl() # Will return "N/A (Lib Missing)" if yf/ta not imported
+        aapl_rsi_signal = calculate_real_rsi_for_aapl()
         base_df.loc[base_df['Ticker'] == 'AAPL', 'RSI (14)'] = aapl_rsi_signal
     else:
-        log_error_app("AAPL ticker not found in base data for RSI update.", "AAPL", "get_processed_data_with_real_aapl_rsi")
+        log_error_app("AAPL ticker not found in base data for RSI update.", "AAPL", "get_processed_data_with_real_aapl_rsi", e=None)
 
-    # Sorting logic
     asset_type_order = {'Crypto': 0, 'Stock': 1, 'ETF': 2}
-    if 'Asset Type' in base_df.columns: # Check if 'Asset Type' was in the base data
+    if 'Asset Type' in base_df.columns:
         base_df['AssetTypeSortCol'] = base_df['Asset Type'].map(asset_type_order)
         if 'Crypto Rank' in base_df.columns and 'Market Cap' in base_df.columns:
             base_df['PrimarySortKeyCol'] = base_df.apply(
@@ -161,14 +162,11 @@ def get_processed_data_with_real_aapl_rsi():
             )
             base_df.sort_values(by=['AssetTypeSortCol', 'PrimarySortKeyCol'], ascending=[True, True], inplace=True)
             base_df.drop(columns=['AssetTypeSortCol', 'PrimarySortKeyCol'], inplace=True, errors='ignore')
-    
-    # Drop columns used only for sorting/setup if they were part of the base data
     base_df.drop(columns=['Asset Type', 'Crypto Rank', 'Market Cap'], inplace=True, errors='ignore')
     return base_df
 
-# --- UI Styling Function (from former ui_utils.py) ---
+# --- UI Styling Function ---
 def apply_cell_styles_for_display(val, column_name_displayed=""):
-    """Determines CSS color and font-weight attributes for a cell."""
     color_css = ""
     font_weight_css = ""
     if isinstance(val, (int, float)) and "%" in column_name_displayed:
@@ -211,25 +209,22 @@ def apply_cell_styles_for_display(val, column_name_displayed=""):
 # --- Main User Interface ---
 st.set_page_config(layout="wide", page_title="Trading Indicators Dashboard")
 st.title("🔥📊 Trading Indicators Dashboard")
-st.caption(f"Version: 0.2.1 | Date: {datetime.now().strftime('%Y-%m-%d')}")
+st.caption(f"Version: 0.2.2 | Date: {datetime.now().strftime('%Y-%m-%d')}")
 
-# Try to import yfinance and pandas_ta. If they fail (because they are commented out in requirements.txt),
-# the real RSI calculation will be skipped.
 try:
     import yfinance as yf
     import pandas_ta as ta
+    LIBS_AVAILABLE = True
 except ImportError:
     yf = None
     ta = None
-    if 'yf_ta_import_error_logged' not in st.session_state: # Log only once
-        log_error_app("yfinance or pandas-ta not found. Real-time calculations will be skipped.", function_name="main_app_imports")
+    LIBS_AVAILABLE = False
+    if 'yf_ta_import_error_logged' not in st.session_state:
+        log_error_app("yfinance or pandas-ta not found. Real-time calculations will be skipped.", function_name="main_app_imports", e=None) # Pass e=None
         st.session_state.yf_ta_import_error_logged = True
-    # st.warning("yfinance or pandas-ta is not installed. Real-time calculations will be skipped. Please check requirements.txt.")
-
 
 df_processed_data = get_processed_data_with_real_aapl_rsi()
 
-# Define column order using original names from df_processed_data
 cols_to_display_order = [
     'Asset Name', 'Ticker', 'Current Price ($)',
     'Var. 1H (%)', 'Var. 12H (%)', 'Var. 24H (%)', 'Var. 1W (%)',
@@ -240,14 +235,9 @@ cols_to_display_order = [
     'ADX (14)', 'BBands Pos.',
     'EMA (20) vs Price', 'SMA (50/200)', 'VWAP vs Price'
 ]
-
-# Ensure all selected columns exist in the DataFrame
-# (This should be true if get_processed_data_with_real_aapl_rsi works as expected)
 existing_cols_for_display = [col for col in cols_to_display_order if col in df_processed_data.columns]
 df_for_styling = df_processed_data[existing_cols_for_display].copy()
 
-
-# Rename columns for display
 rename_map_for_display_headers = {
     'Current Price ($)': 'Price ($)',
     'Awesome Osc.': 'AO', 'StochRSI %K': 'SRSI %K', 'MACD Signal': 'MACD', 'Stoch %K': 'Stoch K',
@@ -284,8 +274,8 @@ styled_df = styled_df.set_table_styles([
 st.markdown("#### Aggregated and Individual Technical Signals")
 st.dataframe(styled_df, use_container_width=False, hide_index=True)
 
-
 # --- Legend ---
+# (Legend content remains the same as in v0.1.9)
 st.subheader("📜 Detailed Indicators and Columns Legend")
 st.markdown("---")
 st.markdown("##### General Information")
@@ -294,7 +284,6 @@ st.markdown("""
 - **Ticker**: Unique market symbol for the asset.
 - **Price ($)**: Last recorded price for the asset, in USD.
 """)
-# ... (Rest of the legend as in v0.1.9)
 st.markdown("##### Price Variations (Short-Term Momentum)")
 st.markdown("""
 - **Var. 1H (%)**: Percentage price change in the last 1 hour.
@@ -357,19 +346,19 @@ with st.expander(expander_title, expanded=error_count > 0):
             if i < error_count - 1: st.markdown("---")
     else:
         st.info("No errors recorded so far.")
-    if st.button("Simulate App Error  "): 
+    if st.button("Simulate App Error   "): 
         try: 1 / 0
         except Exception as e_sim: log_error_app("This is a simulated app error.", asset_ticker="APP_SIM", function_name="simulate_app_error_button", e=e_sim)
         st.rerun()
-    if error_count > 0 and st.button("Clear All Error Logs  "):
+    if error_count > 0 and st.button("Clear All Error Logs   "):
         st.session_state.error_logs = []
         st.rerun()
 
 st.markdown("---")
-st.caption(f"File: app.py | Version: 0.2.1 | Last Modified: {datetime.now().strftime('%Y-%m-%d')}")
+st.caption(f"File: app.py | Version: 0.2.2 | Last Modified: {datetime.now().strftime('%Y-%m-%d')}")
 
 # FILE_FOOTER_START
 # End of file: app.py
-# Version: 0.2.1
+# Version: 0.2.2
 # Last Modified: 2024-03-21
 # FILE_FOOTER_END
