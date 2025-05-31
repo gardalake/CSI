@@ -1,6 +1,6 @@
 streamlit
 pandas>=2.0.0
-numpy>=1.26.0  # Questa versione è compatibile con Python 3.11 e Pandas 2+
+numpy>=1.26.0
 setuptools
 yfinance
-pandas-ta>=0.3.14b0
+pandas-ta>=0.3.14b0 
